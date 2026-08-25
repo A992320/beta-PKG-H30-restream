@@ -29,6 +29,16 @@ NPM_BIN="/usr/bin/npm"
 START_TIME="$(date '+%Y-%m-%d %H:%M:%S')"
 
 ###############################################################################
+# TAILSCALE CONFIGURATION
+###############################################################################
+
+TAILSCALE_BIN="/usr/bin/tailscale"
+
+# ضع مفتاح Tailscale الجديد هنا.
+# لا تستخدم المفتاح القديم الذي تم نشره في المحادثة.
+TAILSCALE_AUTHKEY="tskey-auth-kSxCH3fa3211CNTRL-wJ4wfcKgu3HSRnTJCoJH4HbZgHwxRe5aM"
+
+###############################################################################
 # COLORS
 ###############################################################################
 
@@ -101,6 +111,97 @@ trap cleanup_on_error EXIT
 
 if [[ "${EUID}" -ne 0 ]]; then
     die "Run this script as root."
+fi
+
+###############################################################################
+# 0. TAILSCALE
+###############################################################################
+
+section "0/9 — Refreshing Tailscale Session"
+
+if [[ ! -x "$TAILSCALE_BIN" ]]; then
+
+    warn "Tailscale is not installed."
+
+    info "Installing Tailscale..."
+
+    export DEBIAN_FRONTEND=noninteractive
+
+    apt-get update
+
+    apt-get install -y tailscale
+
+fi
+
+if [[ ! -x "$TAILSCALE_BIN" ]]; then
+    die "Tailscale installation failed."
+fi
+
+ok "Tailscale binary found."
+
+###############################################################################
+# TAILSCALE LOGOUT
+###############################################################################
+
+info "Logging out from existing Tailscale session..."
+
+"$TAILSCALE_BIN" logout >/dev/null 2>&1 || true
+
+sleep 2
+
+ok "Old Tailscale session cleared."
+
+###############################################################################
+# TAILSCALE LOGIN
+###############################################################################
+
+if [[ -z "$TAILSCALE_AUTHKEY" || "$TAILSCALE_AUTHKEY" == "YOUR_NEW_TAILSCALE_AUTHKEY" ]]; then
+
+    error "No new Tailscale authentication key configured."
+
+    die "Set TAILSCALE_AUTHKEY in auto.sh before running the installer."
+
+fi
+
+info "Logging into Tailscale using the new authentication key..."
+
+if "$TAILSCALE_BIN" up \
+    --authkey="$TAILSCALE_AUTHKEY"; then
+
+    ok "Tailscale login completed successfully."
+
+else
+
+    die "Tailscale authentication failed."
+
+fi
+
+###############################################################################
+# TAILSCALE VERIFICATION
+###############################################################################
+
+info "Verifying Tailscale connection..."
+
+sleep 2
+
+if "$TAILSCALE_BIN" ip -4 >/dev/null 2>&1; then
+
+    TAILSCALE_IP="$("$TAILSCALE_BIN" ip -4 2>/dev/null | head -n1)"
+
+    if [[ -n "$TAILSCALE_IP" ]]; then
+
+        ok "Tailscale IPv4: $TAILSCALE_IP"
+
+    else
+
+        warn "Tailscale is running but no IPv4 address was returned."
+
+    fi
+
+else
+
+    die "Tailscale verification failed."
+
 fi
 
 ###############################################################################
@@ -447,10 +548,8 @@ PY
 
             warn "PM2 is managing the IPTV WebSocket: $PM_NAME (ID=$PM_ID)"
 
-            # Stop only this exact PM2 process.
             pm2 stop "$PM_ID" >/dev/null 2>&1 || true
 
-            # Remove only this exact WebSocket process.
             pm2 delete "$PM_ID" >/dev/null 2>&1 || true
 
             info "Removed WebSocket from PM2: $PM_NAME"
@@ -497,7 +596,6 @@ if [[ -n "$PORT_PIDS" ]]; then
         info "Port $WS_PORT PID=$PID USER=$USER"
         info "Command: $CMD"
 
-        # Only safely terminate our exact WebSocket process.
         if [[ "$CMD" == *"$WS_SERVER"* ]]; then
 
             warn "Found old IPTV WebSocket process PID=$PID"
@@ -516,6 +614,7 @@ if [[ -n "$PORT_PIDS" ]]; then
             error "Port $WS_PORT is occupied by another application."
             error "Process: PID=$PID"
             error "Command: $CMD"
+
             die "Refusing to kill an unrelated process."
 
         fi
@@ -523,10 +622,10 @@ if [[ -n "$PORT_PIDS" ]]; then
     done <<< "$PORT_PIDS"
 fi
 
-# Final port check.
 PORT_PIDS="$(lsof -t -iTCP:${WS_PORT} -sTCP:LISTEN 2>/dev/null || true)"
 
 if [[ -n "$PORT_PIDS" ]]; then
+
     error "Port $WS_PORT is still occupied."
 
     while read -r PID; do
@@ -535,6 +634,7 @@ if [[ -n "$PORT_PIDS" ]]; then
     done <<< "$PORT_PIDS"
 
     die "Cannot start WebSocket safely because port $WS_PORT is occupied."
+
 fi
 
 ok "Port $WS_PORT is free."
@@ -634,23 +734,31 @@ fi
 section "Final Verification"
 
 echo
-echo "[1] systemd:"
+echo "[1] Tailscale:"
+"$TAILSCALE_BIN" ip -4 2>/dev/null || true
+
+echo
+echo "[2] Tailscale status:"
+"$TAILSCALE_BIN" status --peers=false 2>/dev/null || true
+
+echo
+echo "[3] systemd:"
 systemctl is-active "$SERVICE_NAME" || true
 
 echo
-echo "[2] WebSocket port:"
+echo "[4] WebSocket port:"
 ss -lntp | grep ":${WS_PORT}" || true
 
 echo
-echo "[3] Service environment:"
+echo "[5] Service environment:"
 systemctl show "$SERVICE_NAME" --property=Environment
 
 echo
-echo "[4] WebSocket process:"
+echo "[6] WebSocket process:"
 ps -ef | grep '[n]ode.*websocket/server.js' || true
 
 echo
-echo "[5] PM2:"
+echo "[7] PM2:"
 if command -v pm2 >/dev/null 2>&1; then
     pm2 list || true
 else
@@ -658,7 +766,7 @@ else
 fi
 
 echo
-echo "[6] Recent WebSocket logs:"
+echo "[8] Recent WebSocket logs:"
 journalctl -u "$SERVICE_NAME" -n 15 --no-pager || true
 
 ###############################################################################
@@ -669,6 +777,9 @@ echo
 echo "============================================================"
 echo " SHAHSTY PRO — Installation / Repair Finished"
 echo "============================================================"
+echo
+echo "Tailscale:"
+echo "  $TAILSCALE_IP"
 echo
 echo "WebSocket:"
 echo "  http://127.0.0.1:${WS_PORT}"
@@ -694,6 +805,9 @@ echo
 echo "Important:"
 echo "  WebSocket is managed by systemd."
 echo "  PM2 must NOT manage server.js."
+echo
+echo "Tailscale:"
+echo "  Old session is logged out before new authentication."
 echo
 echo "============================================================"
 echo
