@@ -1047,7 +1047,7 @@ async function openSeriesEpisodes(seriesId,seriesName,seriesPoster){
   App.currentSeriesPoster=seriesPoster||'';
   if(!App.currentSeriesPoster){
     try{
-      var _f=(App.allContent||[]).find(function(x){return String(x.id)===String(seriesId)&&(x.poster_url||x._ftype==='series'||x.ftype==='series');});
+      var _f=(App.allContent||[]).find(function(x){return x.globalType==='series'&&String(x.id)===String(seriesId);});
       if(_f&&_f.poster_url)App.currentSeriesPoster=_f.poster_url;
     }catch(e){}
   }
@@ -1417,7 +1417,7 @@ async function shsRestoreFromHash(){
           const r = await fetch(`api.php?action=series&id=${encodeURIComponent(sid)}`);
           const d = await r.json();
           const one = (d.series && (Array.isArray(d.series) ? d.series[0] : d.series)) || d.data || null;
-          if(one){ name = one.name || ''; poster = one.poster_url || ''; }
+          if(one && String(one.id) === String(sid)){ name = one.name || ''; poster = one.poster_url || ''; }
         }catch(e){}
       } else {
         name = hit.name || ''; poster = hit.poster_url || '';

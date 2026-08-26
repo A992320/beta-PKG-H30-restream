@@ -1057,18 +1057,33 @@ function getNotificationState()
 function getSeries()
 {
     try {
+        $series_id   = safeInt($_GET['id'] ?? null, 0, 2147483647, 0);
         $category_id = isset($_GET['category_id']) ? (int) $_GET['category_id'] : 0;
         $limit       = safeInt($_GET['limit']  ?? null, 1, 500,     200);
         $offset      = safeInt($_GET['offset'] ?? null, 0, 1000000, 0);
         $after_id    = safeInt($_GET['after_id'] ?? null, 0, 2147483647, 0);
 
-        $key = "srs:{$category_id}:{$limit}:{$offset}:{$after_id}:" . apiContentStamp();
+        $key = "srs:{$series_id}:{$category_id}:{$limit}:{$offset}:{$after_id}:" . apiContentStamp();
 
         $series = apiRemember(
             $key,
             120,
-            static function () use ($category_id, $limit, $offset, $after_id): array {
+            static function () use ($series_id, $category_id, $limit, $offset, $after_id): array {
                 $pdo = db();
+
+                if ($series_id > 0) {
+                    $stmt = $pdo->prepare("
+                        SELECT s.*, c.name as cat_name, c.icon as cat_icon, COUNT(e.id) as ep_count
+                        FROM series s
+                        LEFT JOIN categories c ON s.category_id = c.id
+                        LEFT JOIN episodes   e ON e.series_id   = s.id
+                        WHERE s.id = ? AND s.is_active = 1
+                        GROUP BY s.id
+                        LIMIT 1
+                    ");
+                    $stmt->execute([$series_id]);
+                    return $stmt->fetchAll();
+                }
 
                 if ($after_id > 0) {
                     $stmt = $pdo->prepare("
