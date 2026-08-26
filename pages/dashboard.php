@@ -30,11 +30,35 @@
   </style>
   <div class="shdr"><h1 class="stitle"><?= $t["overview"] ?? "نظرة <span>عامة</span>" ?></h1></div>
   <div class="sgrid">
-    <div class="sc r"><div class="sc-ic"><svg class="ad-icon" aria-hidden="true"><use href="#ad-i-grid"/></svg></div><div class="sc-v"><?php echo $stats['cats']; ?></div><div class="sc-l"><?= $t["categories"] ?? "الأقسام" ?></div></div>
-    <div class="sc g"><div class="sc-ic"><svg class="ad-icon" aria-hidden="true"><use href="#ad-i-tv"/></svg></div><div class="sc-v"><?php echo $stats['channels']; ?></div><div class="sc-l"><?= $t["channels"] ?? "القنوات" ?></div></div>
-    <div class="sc p"><div class="sc-ic"><svg class="ad-icon" aria-hidden="true"><use href="#ad-i-clapper"/></svg></div><div class="sc-v"><?php echo $stats['series']; ?></div><div class="sc-l"><?= $t["series"] ?? "شاشتي" ?></div></div>
+    <button type="button" class="sc r dashboard-stat-link" onclick="S('categories')" aria-label="الانتقال إلى إدارة الأقسام"><div class="sc-ic"><svg class="ad-icon" aria-hidden="true"><use href="#ad-i-grid"/></svg></div><div class="sc-v"><?php echo $stats['cats']; ?></div><div class="sc-l"><?= $t["categories"] ?? "الأقسام" ?></div></button>
+    <button type="button" class="sc g dashboard-stat-link" onclick="S('channels')" aria-label="الانتقال إلى إدارة القنوات"><div class="sc-ic"><svg class="ad-icon" aria-hidden="true"><use href="#ad-i-tv"/></svg></div><div class="sc-v"><?php echo $stats['channels']; ?></div><div class="sc-l"><?= $t["channels"] ?? "القنوات" ?></div></button>
+    <button type="button" class="sc p dashboard-stat-link" onclick="S('series')" aria-label="الانتقال إلى شاشتي"><div class="sc-ic"><svg class="ad-icon" aria-hidden="true"><use href="#ad-i-clapper"/></svg></div><div class="sc-v"><?php echo $stats['series']; ?></div><div class="sc-l"><?= $t["series"] ?? "شاشتي" ?></div></button>
     <div class="sc go"><div class="sc-ic"><svg class="ad-icon ad-icon--views" aria-hidden="true"><use href="#ad-i-eye"/></svg></div><div class="sc-v"><?php echo number_format($stats['views']); ?></div><div class="sc-l"><?= $t["views"] ?? "المشاهدات" ?></div></div>
-    <div class="sc b"><div class="sc-ic"><svg class="ad-icon" aria-hidden="true"><use href="#ad-i-users"/></svg></div><div class="sc-v"><?php echo $stats['users']; ?></div><div class="sc-l"><?= $t["users"] ?? "المستخدمين" ?></div></div>
+    <button type="button" class="sc b dashboard-stat-link" onclick="S('users');loadUsers()" aria-label="الانتقال إلى إدارة المستخدمين"><div class="sc-ic"><svg class="ad-icon" aria-hidden="true"><use href="#ad-i-users"/></svg></div><div class="sc-v"><?php echo $stats['users']; ?></div><div class="sc-l"><?= $t["users"] ?? "المستخدمين" ?></div></button>
+  </div>
+
+  <section class="dashboard-shortcuts" aria-labelledby="dashboardShortcutsTitle">
+    <div class="dashboard-shortcuts-hd">
+      <div><span class="dashboard-shortcuts-kicker">تنقل سريع</span><h2 id="dashboardShortcutsTitle">الاختصارات</h2></div>
+      <button type="button" class="dashboard-shortcuts-add" onclick="dashboardShortcuts.open()" aria-haspopup="dialog">
+        <svg class="ad-icon" aria-hidden="true"><use href="#ad-i-plus"/></svg><span>إضافة اختصار</span>
+      </button>
+    </div>
+    <div class="dashboard-shortcuts-list" id="dashboardShortcutList" aria-live="polite"></div>
+  </section>
+
+  <div class="mbd" id="dashboardShortcutM" role="dialog" aria-modal="true" aria-labelledby="dashboardShortcutModalTitle">
+    <div class="mbox dashboard-shortcuts-modal" role="document">
+      <div class="mhd"><b id="dashboardShortcutModalTitle">إضافة اختصار</b><button type="button" class="mx" onclick="CM('dashboardShortcutM')" aria-label="إغلاق">&times;</button></div>
+      <div class="mbody">
+        <div class="fg"><label class="fl" for="dashboardShortcutName">اسم الاختصار <span>اختياري</span></label><input class="fi" id="dashboardShortcutName" type="text" maxlength="48" autocomplete="off" placeholder="مثال: إدارة القنوات"></div>
+        <div class="fg"><label class="fl" for="dashboardShortcutTarget">القسم</label><select class="fs" id="dashboardShortcutTarget">
+          <option value="categories">الأقسام</option><option value="channels">القنوات</option><option value="m3u-import">استيراد M3U</option><option value="xtream">حساب Xtream</option><option value="series">شاشتي (المسلسلات والأفلام)</option><option value="vupload">رفع الأفلام</option><option value="vmanage">إدارة الفيديوهات</option><option value="subscriptions">خطط الاشتراك</option><option value="coupons">أكواد التفعيل</option><option value="subscribers">المشتركون</option><option value="api-settings">إعدادات API</option><option value="site-settings">إعدادات الموقع</option><option value="system-tools">صيانة النظام</option><option value="backup">النسخ الاحتياطي</option><option value="users">إدارة المستخدمين</option><option value="login-logs">سجل الدخول</option><option value="general-settings">الإعدادات العامة</option><option value="frontend-control">التحكم بالواجهة الأمامية</option><option value="company-info">حول الشركة</option><option value="update">التحديثات والنظام</option>
+        </select></div>
+        <p class="dashboard-shortcuts-note">يُفتح الاختصار ضمن لوحة التحكم نفسها، بحسب صلاحيات حسابك.</p>
+      </div>
+      <div class="mfooter"><button type="button" class="btn btn-g" onclick="CM('dashboardShortcutM')">إلغاء</button><button type="button" class="btn btn-p" onclick="dashboardShortcuts.save()">حفظ الاختصار</button></div>
+    </div>
   </div>
 
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-bottom:25px;">

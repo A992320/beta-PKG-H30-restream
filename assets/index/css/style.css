@@ -1,4 +1,3 @@
-<style>
 /* ════ ROOT VARIABLES ════ */
 :root {
   --red:#e50914; --bg:#0f0f0f; --bg2:#181818; --bg3:#202020;
@@ -100,38 +99,6 @@ img{display:block;max-width:100%;height:auto}
 #notifBadge{position:absolute;top:3px;right:3px;width:8px;height:8px;border-radius:50%;background:red;box-shadow:0 0 8px #ff3040}
 /* nav responsive في كتلة الـ responsive الموحّدة أدناه */
 
-/* ════ CATEGORY QUICK NAV (شريط اختصارات الأقسام) ════ */
-.cat-navbar{
-  position:fixed;left:0;right:0;z-index:880;
-  top:var(--navbar-h, 68px);
-  display:flex;align-items:center;gap:8px;
-  padding:10px max(15px, env(safe-area-inset-right)) 10px max(15px, env(safe-area-inset-left));
-  background:rgba(12,12,12,.55);backdrop-filter:blur(18px) saturate(160%);
-  -webkit-backdrop-filter:blur(18px) saturate(160%);
-  border-bottom:1px solid rgba(255,255,255,.05);
-  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;
-  white-space:nowrap;
-}
-.cat-navbar::-webkit-scrollbar{display:none}
-.cat-nav-btn{
-  flex-shrink:0;display:inline-flex;align-items:center;gap:6px;
-  padding:7px 16px;border-radius:99px;cursor:pointer;
-  background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.1);
-  color:#ccc;font-size:.82rem;font-weight:700;
-  transition:var(--transition);font-family:inherit;
-}
-.cat-nav-btn:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.22);color:#fff}
-.cat-nav-btn.active{background:var(--red);border-color:var(--red);color:#fff;box-shadow:0 4px 14px rgba(229,9,20,.4)}
-.cat-nav-btn i,.cat-nav-btn .lcn{font-size:.8rem}
-/* [SHS-ICON-FIX] ضمان وراثة اللون والحجم لأيقونات SVG داخل شريط الأقسام */
-.cat-nav-btn .lcn{display:inline-flex;align-items:center;justify-content:center;line-height:0;flex-shrink:0}
-.cat-nav-btn svg,.cat-nav-btn .lcn svg{
-  width:1em;height:1em;flex-shrink:0;
-  color:inherit;stroke:currentColor;fill:none;
-  vertical-align:middle;pointer-events:none;
-}
-.cat-nav-btn.active svg,.cat-nav-btn.active .lcn svg{color:inherit;stroke:currentColor}
-
 /* ════ HERO WELCOME ════ */
 .hero-welcome{padding:0 20px;margin-bottom:28px}
 .hero-welcome h1{font-size:clamp(1.5rem,2.5vw,2.4rem);font-weight:900;margin-bottom:8px;animation:fadeUp .6s ease both}
@@ -139,8 +106,6 @@ img{display:block;max-width:100%;height:auto}
 
 /* ════ SECTION ROW ════ */
 .netflix-slider-row{position:relative;margin-bottom:32px}
-/* تسريع الرسم: تخطّي رسم الصفوف خارج الشاشة حتى الاقتراب منها (إضافة) */
-.netflix-slider-row{content-visibility:auto;contain-intrinsic-size:auto 260px}
 .slider-header{display:flex;align-items:center;justify-content:space-between;padding:0 12px;margin-bottom:10px;border-right:3px solid var(--red)}
 .slider-title{display:flex;align-items:center;gap:8px;font-size:1rem;font-weight:800;color:#fff;padding:0;margin:0;flex:1;min-width:0}
 .slider-title-icon{width:26px;height:26px;border-radius:5px;background:rgba(229,9,20,.15);border:1px solid rgba(229,9,20,.3);display:flex;align-items:center;justify-content:center;color:#ff4d57;font-size:.75rem;flex-shrink:0}
@@ -149,360 +114,6 @@ img{display:block;max-width:100%;height:auto}
 .snav-btn{display:none}
 .slider-scroll-mask{position:relative}
 .slider-footer{display:none}
-
-/* [SHS-CATMENU-STYLE-START] قائمة الأقسام العمودية المنسدلة (إضافة فقط) */
-.shs-catmenu-btn{
-  width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.08);
-  border:1.5px solid rgba(255,255,255,.1);color:#ccc;display:flex;align-items:center;
-  justify-content:center;font-size:.9rem;transition:var(--transition);cursor:pointer;position:relative;
-}
-.shs-catmenu-btn:hover{background:var(--red);border-color:var(--red);color:#fff;transform:scale(1.08)}
-.shs-catmenu-overlay{
-  position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1400;opacity:0;visibility:hidden;
-  transition:opacity .25s ease,visibility .25s ease;
-}
-.shs-catmenu-overlay.open{opacity:1;visibility:visible}
-.shs-catmenu-panel{
-  position:fixed;top:0;right:0;height:100%;width:min(300px,82vw);
-  background:#141414;border-left:1px solid rgba(255,255,255,.08);
-  box-shadow:-8px 0 40px rgba(0,0,0,.6);z-index:1401;
-  transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);
-  display:flex;flex-direction:column;overflow-y:auto;
-}
-.shs-catmenu-panel.open{transform:translateX(0)}
-.shs-catmenu-panel::-webkit-scrollbar{width:6px}
-.shs-catmenu-panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:3px}
-.shs-catmenu-head{
-  display:flex;align-items:center;justify-content:space-between;gap:16px;
-  padding:18px 20px;border-bottom:1px solid rgba(255,255,255,.08);
-  position:sticky;top:0;background:#141414;z-index:2;
-}
-.shs-catmenu-head a,.shs-catmenu-head .shs-catmenu-home{
-  background:none;border:none;color:#eaeaea;font-size:.95rem;font-weight:700;
-  cursor:pointer;font-family:inherit;padding:4px 2px;transition:color .2s;
-}
-.shs-catmenu-head a:hover,.shs-catmenu-head .shs-catmenu-home:hover{color:var(--red)}
-.shs-catmenu-close{
-  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
-  color:#ccc;width:30px;height:30px;border-radius:50%;display:flex;
-  align-items:center;justify-content:center;cursor:pointer;transition:.2s;flex-shrink:0;
-}
-.shs-catmenu-close:hover{background:var(--red);border-color:var(--red);color:#fff}
-.shs-catmenu-list{display:flex;flex-direction:column;padding:6px 0}
-.shs-catmenu-item{
-  background:none;border:none;color:#dcdcdc;font-family:inherit;
-  text-align:right;font-size:.95rem;padding:16px 22px;cursor:pointer;
-  border-bottom:1px solid rgba(255,255,255,.06);transition:background .2s,color .2s;
-  display:flex;align-items:center;justify-content:flex-end;gap:10px;
-}
-.shs-catmenu-item:hover{background:rgba(255,255,255,.05);color:#fff}
-.shs-catmenu-item.active{color:var(--red);font-weight:700}
-.shs-catmenu-item .shs-catmenu-arrow{color:var(--text-muted);font-size:.8rem;order:-1}
-.shs-catmenu-empty{padding:24px 22px;color:var(--text-muted);font-size:.85rem;text-align:center}
-@media(max-width:600px){
-  .shs-catmenu-item{padding:15px 18px;font-size:.9rem}
-  .shs-catmenu-head{padding:16px 18px}
-}
-/* [SHS-CATMENU-STYLE-END] */
-
-/* [SHS-CATMENU-PRO-START] إخفاء الشريط الأفقي + تصميم احترافي للقائمة العمودية (إضافة فقط) */
-/* إخفاء شريط الأقسام الأفقي (بدون حذف الكود) */
-#catNavbar{display:none !important}
-
-/* لوحة أعرض بخلفية متدرجة وحواف ناعمة */
-.shs-catmenu-panel{
-  width:min(330px,86vw);
-  background:linear-gradient(180deg,#181818 0%,#101010 100%);
-  border-left:1px solid rgba(255,255,255,.06);
-  box-shadow:-14px 0 50px rgba(0,0,0,.7);
-}
-.shs-catmenu-overlay{background:rgba(0,0,0,.62);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
-
-/* رأس احترافي: عنوان بارز + خط سفلي بلون الهوية */
-.shs-catmenu-head{
-  flex-direction:row-reverse;justify-content:space-between;align-items:center;
-  padding:20px 22px 16px;border-bottom:1px solid rgba(255,255,255,.06);
-  background:transparent;
-}
-.shs-catmenu-head .shs-catmenu-home{display:none}
-.shs-catmenu-headwrap{display:flex;flex-direction:column;gap:2px;align-items:flex-start}
-.shs-catmenu-title{
-  font-size:1.15rem;font-weight:900;color:#fff;letter-spacing:-.3px;
-  display:flex;align-items:center;gap:9px;
-}
-.shs-catmenu-title::before{
-  content:"";width:4px;height:20px;border-radius:99px;
-  background:linear-gradient(180deg,var(--red),#ff5b64);display:inline-block;
-}
-.shs-catmenu-sub{font-size:.72rem;color:var(--text-muted);padding-right:13px}
-
-/* زر الرئيسية كصف مميّز أعلى القائمة */
-.shs-catmenu-homerow{
-  display:flex;align-items:center;justify-content:flex-end;gap:10px;
-  margin:12px 16px 6px;padding:13px 16px;cursor:pointer;
-  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);
-  border-radius:12px;color:#eaeaea;font-family:inherit;font-size:.92rem;font-weight:700;
-  transition:background .2s,border-color .2s,transform .15s;
-}
-.shs-catmenu-homerow:hover{background:rgba(229,9,20,.14);border-color:rgba(229,9,20,.4);color:#fff;transform:translateX(-3px)}
-.shs-catmenu-homerow .lcn{color:var(--red);font-size:1rem}
-
-/* عناصر الأقسام: بطاقات ناعمة بدل خطوط فاصلة صريحة */
-.shs-catmenu-list{padding:6px 12px 20px;gap:2px}
-.shs-catmenu-item{
-  border-bottom:none;border-radius:11px;padding:14px 16px;margin:1px 0;
-  position:relative;overflow:hidden;
-}
-.shs-catmenu-item::after{content:none}
-.shs-catmenu-item:hover{background:rgba(255,255,255,.06);transform:translateX(-3px)}
-.shs-catmenu-item.active{
-  background:linear-gradient(90deg,rgba(229,9,20,.18),rgba(229,9,20,.04));
-  color:#fff;
-}
-.shs-catmenu-item.active::before{
-  content:"";position:absolute;right:0;top:18%;height:64%;width:3px;
-  border-radius:99px;background:var(--red);
-}
-.shs-catmenu-item .shs-catmenu-idx{
-  font-size:.7rem;color:var(--text-muted);background:rgba(255,255,255,.05);
-  border:1px solid rgba(255,255,255,.08);border-radius:7px;min-width:24px;height:24px;
-  display:flex;align-items:center;justify-content:center;order:-2;flex-shrink:0;transition:.2s;
-}
-.shs-catmenu-item:hover .shs-catmenu-idx,.shs-catmenu-item.active .shs-catmenu-idx{
-  background:rgba(229,9,20,.18);border-color:rgba(229,9,20,.35);color:#ff8a90;
-}
-.shs-catmenu-item .shs-catmenu-name{flex:1;text-align:right}
-.shs-catmenu-item .shs-catmenu-arrow{opacity:0;transform:translateX(4px);transition:.2s}
-.shs-catmenu-item:hover .shs-catmenu-arrow{opacity:1;transform:translateX(0)}
-
-/* شارة عدد الأقسام في الأسفل */
-.shs-catmenu-count{
-  margin-top:auto;padding:14px 22px;border-top:1px solid rgba(255,255,255,.06);
-  font-size:.72rem;color:var(--text-muted);text-align:center;
-}
-/* [SHS-CATMENU-PRO-END] */
-
-/* [SHS-SEARCHBAR-START] ترتيب وتصميم شريط البحث ليطابق الصورة (إضافة فقط) */
-/* الترتيب: الشعار أقصى اليمين — البحث يتمدّد — الأزرار أقصى اليسار */
-.navbar .nav-brand{order:3 !important}
-.navbar .nav-center{order:2 !important;flex:1 !important;min-width:0}
-.navbar .nav-actions{order:1 !important}
-
-/* كبسولة البحث: خلفية داكنة زرقاء + العدسة يساراً + نص يبدأ من اليسار */
-.search-wrap{position:relative;max-width:640px;margin:0 auto}
-.search-wrap input{
-  width:100% !important;
-  padding:11px 16px 11px 44px !important;   /* مساحة للعدسة على اليسار */
-  background:linear-gradient(180deg,#1e2a4a 0%,#182238 100%) !important;
-  border:1.5px solid rgba(120,150,220,.22) !important;
-  border-radius:999px !important;
-  color:#e8ecf6 !important;
-  font-size:.92rem !important;
-  direction:ltr !important;                 /* النص والعدسة على اليسار كما بالصورة */
-  text-align:left !important;
-  box-shadow:0 2px 10px rgba(0,0,0,.28) inset,0 1px 0 rgba(255,255,255,.03);
-}
-.search-wrap input::placeholder{color:#9fb0d4 !important;opacity:.9}
-.search-wrap input:focus{
-  background:linear-gradient(180deg,#22315a 0%,#1b2743 100%) !important;
-  border-color:rgba(120,150,220,.5) !important;
-  box-shadow:0 0 0 3px rgba(90,120,200,.18),0 2px 10px rgba(0,0,0,.3) inset !important;
-}
-/* أيقونة العدسة على اليسار */
-.search-wrap .si{
-  right:auto !important;left:15px !important;
-  color:#9fb0d4 !important;font-size:.9rem !important;
-}
-/* الشعار على أقصى اليمين بحجم أوضح */
-.navbar .nav-logo-img{width:34px;height:34px;border-radius:8px}
-/* [SHS-SEARCHBAR-END] */
-
-/* [SHS-CATVIEW-STYLE-START] عرض احترافي داخل الأقسام + هياكل تحميل (إضافة فقط) */
-/* بانر عنوان القسم */
-.shs-catview-banner{
-  display:flex;align-items:center;gap:14px;margin:6px 0 20px;padding:16px 18px;
-  border-radius:16px;position:relative;overflow:hidden;
-  background:linear-gradient(120deg,rgba(229,9,20,.14),rgba(30,42,74,.35) 60%,rgba(255,255,255,.02));
-  border:1px solid rgba(255,255,255,.07);
-}
-.shs-catview-banner::before{
-  content:"";position:absolute;inset:0;z-index:0;
-  background:radial-gradient(120% 140% at 100% 0,rgba(229,9,20,.22),transparent 55%);
-  pointer-events:none;
-}
-.shs-catview-banner>*{position:relative;z-index:1}
-.shs-catview-ico{
-  width:46px;height:46px;flex-shrink:0;border-radius:13px;display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(180deg,rgba(229,9,20,.28),rgba(229,9,20,.12));
-  border:1px solid rgba(229,9,20,.35);color:#ff6169;font-size:1.15rem;
-  box-shadow:0 4px 14px rgba(229,9,20,.25);
-}
-.shs-catview-meta{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
-.shs-catview-name{font-size:1.25rem;font-weight:900;color:#fff;letter-spacing:-.4px;line-height:1.1}
-.shs-catview-chips{display:flex;flex-wrap:wrap;gap:6px}
-.shs-catview-chip{
-  font-size:.68rem;font-weight:700;padding:3px 10px;border-radius:99px;
-  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:var(--text-dim);
-  display:inline-flex;align-items:center;gap:5px;
-}
-.shs-catview-chip.total{background:rgba(229,9,20,.16);border-color:rgba(229,9,20,.32);color:#ff8a90}
-.shs-catview-chip .dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.8}
-
-/* فاصل بين القنوات والمسلسلات */
-.shs-catview-sep{
-  grid-column:1/-1;display:flex;align-items:center;gap:12px;margin:14px 0 4px;
-  color:var(--text-muted);font-size:.78rem;font-weight:700;
-}
-.shs-catview-sep::before,.shs-catview-sep::after{content:"";height:1px;flex:1;background:rgba(255,255,255,.08)}
-
-/* هياكل تحميل (Skeleton) بدل السبنر */
-.shs-skel-grid{display:none}
-.shs-skel-card{
-  border-radius:12px;overflow:hidden;background:rgba(255,255,255,.04);
-  border:1px solid rgba(255,255,255,.05);aspect-ratio:2/3;position:relative;
-}
-.shs-skel-card::after{
-  content:"";position:absolute;inset:0;
-  background:linear-gradient(100deg,transparent 20%,rgba(255,255,255,.07) 45%,transparent 70%);
-  transform:translateX(-100%);animation:shsShimmer 1.25s infinite;
-}
-@keyframes shsShimmer{100%{transform:translateX(100%)}}
-
-/* ظهور ناعم لشبكة العناصر */
-.shs-fadein{animation:shsFadeIn .35s ease both}
-@keyframes shsFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-
-/* إخفاء صف العنوان القديم داخل قسم العرض (البانر يحلّ محله) — بلا حذف من الـ HTML */
-#categoryViewSection > div:has(> #categoryViewTitle){display:none !important}
-/* [SHS-CATVIEW-STYLE-END] */
-
-/* [SHS-POLISH-START] لمسات احترافية: شريط أفقي + عرض القسم + القائمة الجانبية (إضافة فقط) */
-
-/* ═══ (1) شريط الأقسام الأفقي — Pills زجاجية + حركات دقيقة + تدرّج للنشط ═══ */
-.cat-navbar{
-  background:linear-gradient(180deg,rgba(18,18,22,.72),rgba(12,12,14,.55)) !important;
-  backdrop-filter:blur(22px) saturate(180%) !important;
-  -webkit-backdrop-filter:blur(22px) saturate(180%) !important;
-  gap:9px !important;
-}
-.cat-nav-btn{
-  padding:8px 18px !important;
-  background:rgba(255,255,255,.05) !important;
-  border:1px solid rgba(255,255,255,.09) !important;
-  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
-  color:#d4d4d4 !important;font-weight:700 !important;
-  transition:transform .18s cubic-bezier(.34,1.56,.64,1),background .2s,border-color .2s,box-shadow .2s,color .2s !important;
-  will-change:transform;
-}
-.cat-nav-btn:hover{
-  background:rgba(255,255,255,.1) !important;border-color:rgba(255,255,255,.2) !important;
-  color:#fff !important;transform:translateY(-2px) scale(1.03);
-  box-shadow:0 6px 18px rgba(0,0,0,.35);
-}
-.cat-nav-btn:active{transform:translateY(0) scale(.97)}
-.cat-nav-btn.active{
-  background:linear-gradient(135deg,#ff2b36,#e50914 55%,#b00610) !important;
-  border-color:rgba(255,90,98,.6) !important;color:#fff !important;
-  box-shadow:0 6px 20px rgba(229,9,20,.45),0 0 0 1px rgba(255,255,255,.06) inset !important;
-  transform:translateY(-1px);
-}
-
-/* ═══ (2) ترويسة القسم — أفخم وأوضح ═══ */
-.shs-catview-banner{
-  gap:16px;padding:20px 22px;border-radius:20px;margin:8px 0 22px;
-  animation:shsBannerIn .5s cubic-bezier(.22,1,.36,1) both;
-}
-@keyframes shsBannerIn{from{opacity:0;transform:translateY(-8px) scale(.98)}to{opacity:1;transform:none}}
-.shs-catview-ico{width:54px;height:54px;border-radius:16px;font-size:1.35rem}
-.shs-catview-name{font-size:1.5rem;letter-spacing:-.6px}
-.shs-catview-chip{font-size:.72rem;padding:4px 12px}
-
-/* زر العودة أنعم داخل عرض القسم */
-#categoryViewSection .back-btn{
-  transition:transform .18s,background .2s,color .2s;border-radius:99px;
-}
-#categoryViewSection .back-btn:hover{transform:translateX(3px)}
-
-/* دخول ناعم Slide-up لكامل قسم العرض */
-#categoryViewSection:not(.hidden){animation:shsSectionIn .45s cubic-bezier(.22,1,.36,1) both}
-@keyframes shsSectionIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-
-/* ظهور تدريجي متدرّج لبطاقات الشبكة */
-#categoryViewGrid.shs-stagger > .ch-card,
-#categoryViewGrid.shs-stagger > .sr-card{animation:shsCardIn .4s ease both}
-@keyframes shsCardIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-
-/* ═══ (2ب) حالة التحميل — سبنر مزدوج أنيق ═══ */
-.shs-spinner{
-  width:54px;height:54px;margin:0 auto;position:relative;
-}
-.shs-spinner::before,.shs-spinner::after{
-  content:"";position:absolute;inset:0;border-radius:50%;
-  border:3px solid transparent;
-}
-.shs-spinner::before{border-top-color:#e50914;border-right-color:#e50914;animation:spin2 .8s linear infinite}
-.shs-spinner::after{inset:8px;border-bottom-color:rgba(255,90,98,.6);border-left-color:rgba(255,90,98,.6);animation:spin2 1.1s linear infinite reverse}
-.shs-loading-txt{margin-top:16px;color:var(--text-muted);font-size:.82rem;font-weight:600}
-
-/* ═══ (2ج) حالة الفراغ — أيقونية جميلة ═══ */
-.shs-empty-wrap{display:flex;flex-direction:column;align-items:center;gap:14px;padding:56px 20px}
-.shs-empty-ico{
-  width:84px;height:84px;border-radius:24px;display:flex;align-items:center;justify-content:center;
-  background:radial-gradient(120% 120% at 30% 20%,rgba(229,9,20,.16),rgba(255,255,255,.03));
-  border:1px solid rgba(255,255,255,.08);color:#ff6169;font-size:2rem;
-  box-shadow:0 10px 30px rgba(0,0,0,.35);animation:shsFloat 3s ease-in-out infinite;
-}
-@keyframes shsFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
-.shs-empty-title{font-size:1.05rem;font-weight:800;color:#e8e8e8}
-.shs-empty-sub{font-size:.82rem;color:var(--text-muted);max-width:280px;text-align:center;line-height:1.6}
-
-/* ═══ (3) القائمة الجانبية — زجاج داكن + مسافات + انزلاق + سكرول أنيق ═══ */
-.shs-catmenu-panel{
-  background:linear-gradient(180deg,rgba(20,22,30,.92),rgba(10,11,16,.94)) !important;
-  -webkit-backdrop-filter:blur(26px) saturate(160%);backdrop-filter:blur(26px) saturate(160%);
-  border-left:1px solid rgba(255,255,255,.08) !important;
-}
-.shs-catmenu-list{padding:10px 12px 20px;gap:5px}
-.shs-catmenu-item{
-  padding:15px 16px;margin:2px 0;
-  transition:background .22s,color .22s,transform .2s cubic-bezier(.34,1.56,.64,1) !important;
-}
-.shs-catmenu-item:hover{transform:translateX(-6px)}
-.shs-catmenu-homerow{transition:background .2s,border-color .2s,transform .2s cubic-bezier(.34,1.56,.64,1)}
-.shs-catmenu-homerow:hover{transform:translateX(-6px)}
-
-/* شريط تمرير أنيق يظهر عند الحاجة فقط */
-.shs-catmenu-panel{scrollbar-width:thin;scrollbar-color:transparent transparent}
-.shs-catmenu-panel:hover{scrollbar-color:rgba(255,255,255,.2) transparent}
-.shs-catmenu-panel::-webkit-scrollbar{width:8px}
-.shs-catmenu-panel::-webkit-scrollbar-track{background:transparent}
-.shs-catmenu-panel::-webkit-scrollbar-thumb{
-  background:transparent;border-radius:99px;border:2px solid transparent;background-clip:padding-box;
-  transition:background .3s;
-}
-.shs-catmenu-panel:hover::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);background-clip:padding-box}
-.shs-catmenu-panel::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.32);background-clip:padding-box}
-
-/* شارة أيقونة القسم في القائمة الجانبية (بديل شارة الرقم) */
-.shs-catmenu-ico{
-  order:-2;flex-shrink:0;width:38px;height:38px;border-radius:11px;
-  display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));
-  border:1px solid rgba(255,255,255,.08);color:#cfd4de;font-size:1.05rem;
-  transition:background .22s,border-color .22s,color .22s,transform .22s;
-}
-.shs-catmenu-ico svg{width:20px;height:20px}
-.shs-catmenu-item:hover .shs-catmenu-ico{
-  background:linear-gradient(180deg,rgba(229,9,20,.22),rgba(229,9,20,.08));
-  border-color:rgba(229,9,20,.4);color:#ff8a90;transform:scale(1.06);
-}
-.shs-catmenu-item.active .shs-catmenu-ico{
-  background:linear-gradient(135deg,#ff2b36,#e50914);border-color:rgba(255,90,98,.55);
-  color:#fff;box-shadow:0 4px 12px rgba(229,9,20,.35);
-}
-/* أيقونة بانر القسم أوضح */
-.shs-catview-ico svg{width:26px;height:26px}
-/* [SHS-POLISH-END] */
 
 /* ════ GRID CONTAINER ════ */
 .slider-cards-wrapper {
@@ -544,7 +155,6 @@ img{display:block;max-width:100%;height:auto}
 .ch-card:hover .ch-play-btn{opacity:1}
 .ch-live-badge{position:absolute;top:5px;right:5px;z-index:5;background:#e50914;color:#fff;font-size:.55rem;font-weight:800;padding:2px 6px;border-radius:3px;animation:glowPulse 3s ease-in-out infinite}
 .ch-fmt-badge{position:absolute;top:5px;left:5px;z-index:5;background:rgba(0,0,0,.7);color:#999;font-size:.52rem;font-weight:800;padding:1px 4px;border-radius:3px;text-transform:uppercase;border:1px solid rgba(255,255,255,.1)}
-.ch-quality-badge{position:absolute;bottom:5px;right:5px;z-index:5;background:rgba(0,0,0,.72);color:#fff;font-size:.52rem;font-weight:800;padding:1px 5px;border-radius:3px;border:1px solid rgba(255,255,255,.15)}
 .ch-info,.sr-info{padding:6px 7px 8px;background:#161616;direction:rtl}
 .ch-name,.sr-name{font-size:clamp(0.68rem,2.2vw,0.85rem);font-weight:700;color:#eeeeee;line-height:1.4;height:2.8em;margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;white-space:normal;transition:color .2s var(--ease-spring)}
 .ch-card:hover .ch-name,.sr-card:hover .sr-name{color:#fff}
@@ -563,10 +173,6 @@ img{display:block;max-width:100%;height:auto}
 .ep-card:hover{transform:translateY(-8px) scale(1.04);border-color:var(--red);box-shadow:0 15px 35px rgba(0,0,0,.7),0 0 20px rgba(229,9,20,.35);z-index:5}
 .ep-thumb-area{position:relative;width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,#252525,#1a1a1a);display:flex;align-items:center;justify-content:center;overflow:hidden}
 .ep-thumb-video{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;z-index:0;pointer-events:none}
-/* [SHS-EPPOSTER] عند استخدام بوستر المسلسل كخلفية: تعتيم خفيف ليبرز زر التشغيل */
-.ep-thumb-fallback{filter:brightness(.62) saturate(1.05)}
-.ep-thumb-area:has(.ep-thumb-fallback)::before{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.55));pointer-events:none}
-.ep-card:hover .ep-thumb-fallback{filter:brightness(.78) saturate(1.1)}
 .ep-thumb-icon{font-size:2.4rem;color:rgba(255,255,255,.6);transition:.3s;z-index:2;position:relative}
 .ep-card:hover .ep-thumb-icon{color:var(--red);transform:scale(1.15)}
 .ep-num-badge{position:absolute;top:8px;right:8px;background:var(--red);color:#fff;padding:2px 9px;border-radius:4px;font-size:.72rem;font-weight:bold;z-index:3}
@@ -686,7 +292,7 @@ video#html5Player{
   opacity:1 !important;
   will-change:auto;
   /* أعلى جودة rendering ممكنة */
-  image-rendering:auto; /* تم تعديله لـ auto لتجنب تهنيج شاشات TCL */
+  image-rendering:high-quality;
 }
 /* تحسينات الجودة فقط عند الطلب الصريح */
 video#html5Player.enh-deblock{filter:url(#enh-deblock) !important}
@@ -728,10 +334,10 @@ video#html5Player.enh-full{filter:url(#enh-full) !important}
 /* ── CENTER ── */
 .p-center{position:absolute;inset:0;z-index:25;display:flex;align-items:center;justify-content:center;gap:45px;pointer-events:none;transition:opacity .3s cubic-bezier(0.25,1,0.4,1)}
 .p-center.hide{opacity:0;pointer-events:none}
-.p-seek-btn{width:76px;height:76px;max-width:80px;max-height:80px;border-radius:50%;background:rgba(0,0,0,.55);border:2px solid rgba(255,255,255,.15);color:#fff;font-size:1.8rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;pointer-events:auto;transition:background .2s,transform .2s;box-shadow:0 10px 30px rgba(0,0,0,.5);box-sizing:border-box;flex:0 0 auto}
+.p-seek-btn{width:76px;height:76px;border-radius:50%;background:rgba(0,0,0,.55);border:2px solid rgba(255,255,255,.15);color:#fff;font-size:1.8rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;pointer-events:auto;transition:background .2s,transform .2s;box-shadow:0 10px 30px rgba(0,0,0,.5)}
 .p-seek-btn:hover,.p-seek-btn:active{background:rgba(229,9,20,.8);border-color:var(--red);transform:scale(1.12)}
 .p-seek-n{font-size:.65rem;font-weight:900;color:rgba(255,255,255,.9);line-height:1}
-.p-play-btn{width:96px;height:96px;max-width:104px;max-height:104px;border-radius:50%;background:rgba(229,9,20,.85);border:3px solid rgba(255,255,255,.2);color:#fff;font-size:2.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;pointer-events:auto;transition:background .25s,transform .25s;box-shadow:0 15px 40px rgba(229,9,20,.4);box-sizing:border-box;flex:0 0 auto}
+.p-play-btn{width:96px;height:96px;border-radius:50%;background:rgba(229,9,20,.85);border:3px solid rgba(255,255,255,.2);color:#fff;font-size:2.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;pointer-events:auto;transition:background .25s,transform .25s;box-shadow:0 15px 40px rgba(229,9,20,.4)}
 .p-play-btn:hover,.p-play-btn:active{background:rgba(229,9,20,1);border-color:#fff;transform:scale(1.15) translateY(-5px);box-shadow:0 20px 50px rgba(229,9,20,.6)}
 
 /* ── BOTTOM ── */
@@ -878,9 +484,6 @@ video#html5Player::cue(i){font-style:italic;color:#ffe066}
   .nav-logo-text{display:none}
   .nav-btn{width:36px;height:36px;font-size:.82rem}
   .music-mini-btn{width:36px;height:36px;font-size:.82rem}
-  /* category quick nav */
-  .cat-navbar{padding:8px 12px;gap:6px}
-  .cat-nav-btn{padding:6px 13px;font-size:.76rem}
   /* player */
   .p-seek-btn{width:56px;height:56px;font-size:1.3rem}
   .p-play-btn{width:72px;height:72px;font-size:2rem}
@@ -893,137 +496,6 @@ video#html5Player::cue(i){font-style:italic;color:#ffe066}
   .p-ep-nav{gap:6px}
 }
 
-/* ════ TV FIX — إصلاح تضخم أزرار المشغل على التلفاز فقط ════
-   متصفحات التلفاز (شاشة عريضة جداً + كثافة بكسل منخفضة) تُظهر أزرار
-   التحكم عملاقة. نثبّت أحجاماً معقولة لها دون المساس بالموبايل/الأندرويد. */
-@media screen and (min-width:1280px){
-  /* أزرار التقديم/التأخير والإيقاف في وسط الفيديو */
-  #playerOverlay .p-center{gap:60px}
-  #playerOverlay .p-seek-btn{width:72px!important;height:72px!important;font-size:1.7rem!important}
-  #playerOverlay .p-play-btn{width:92px!important;height:92px!important;font-size:2.6rem!important}
-  #playerOverlay .p-seek-n{font-size:.62rem!important}
-  /* منع أي تكبير عند hover/active يجعلها تقفز على التلفاز */
-  #playerOverlay .p-seek-btn:hover,#playerOverlay .p-seek-btn:active{transform:none!important}
-  #playerOverlay .p-play-btn:hover,#playerOverlay .p-play-btn:active{transform:none!important}
-}
-/* أجهزة التلفاز عبر pointer الخشن + شاشة كبيرة (تأكيد إضافي) */
-@media screen and (min-width:1280px) and (pointer:coarse){
-  #playerOverlay .p-seek-btn{width:68px!important;height:68px!important}
-  #playerOverlay .p-play-btn{width:88px!important;height:88px!important}
-}
-/* شاشات 4K/التلفاز فائق العرض — نحافظ على نفس الحجم النسبي المعقول */
-@media screen and (min-width:1920px){
-  #playerOverlay .p-seek-btn{width:80px!important;height:80px!important;font-size:1.9rem!important}
-  #playerOverlay .p-play-btn{width:104px!important;height:104px!important;font-size:3rem!important}
-  #playerOverlay .p-center{gap:72px}
-}
-
 /* ════ LUCIDE COMPAT ════ */
 .lcn{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;line-height:1}
 .lcn svg{width:1em;height:1em;stroke:currentColor;fill:none}
-
-/* ════ PERF BOOST — تحسينات أداء إضافية ════ */
-/* تمرير أنعم على كامل الصفحة */
-html{scroll-behavior:smooth}
-@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
-/* عزل رسم كل صف لتقليل إعادة التخطيط عند التمرير */
-.netflix-slider-row{contain:layout style}
-/* الصور: انتقال ظهور لطيف + تسريع فك الترميز */
-img{content-visibility:auto}
-img.perf-img{opacity:0;transition:opacity .35s ease}
-img.perf-img.perf-loaded{opacity:1}
-/* تسريع اللمس وإزالة تأخير 300ms على الجوال */
-a,button,.netflix-card,.nx-card,[onclick]{touch-action:manipulation}
-/* تلميح للمتصفح بأن العناصر القابلة للتمرير ستتحرك */
-.netflix-slider,.nx-row,.ep-list{will-change:scroll-position}
-
-/* ══════════════════════════════════════════════════════════════════
-   ✨ GLASS THEME — تحسين تأثير الزجاج (Blur أعمق + إضاءة داخلية)
-   إضافة فقط — لا يحذف أي شيء. يعزّز وضوح ونعومة الأسطح الزجاجية.
-   ══════════════════════════════════════════════════════════════════ */
-@supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
-
-  /* شريط التنقّل العلوي — زجاج أعمق وأنقى */
-  .navbar{
-    background:linear-gradient(180deg,rgba(14,14,16,.62),rgba(10,10,12,.5)) !important;
-    -webkit-backdrop-filter:blur(30px) saturate(200%) contrast(105%) !important;
-    backdrop-filter:blur(30px) saturate(200%) contrast(105%) !important;
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.06) !important;
-  }
-  .navbar.scrolled{
-    background:linear-gradient(180deg,rgba(12,12,14,.78),rgba(9,9,11,.66)) !important;
-    box-shadow:0 8px 30px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.07) !important;
-  }
-
-  /* شريط الأقسام الأفقي — زجاج غنيّ */
-  .cat-navbar{
-    -webkit-backdrop-filter:blur(28px) saturate(190%) contrast(104%) !important;
-    backdrop-filter:blur(28px) saturate(190%) contrast(104%) !important;
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.05) !important;
-  }
-  .cat-nav-btn{
-    -webkit-backdrop-filter:blur(14px) saturate(140%) !important;
-    backdrop-filter:blur(14px) saturate(140%) !important;
-  }
-
-  /* اللوحات الجانبية (فلاتر/إشعارات/M3U/حلقات) — زجاج فاخر */
-  .fp-panel,.np-panel,.m3u-panel,.ep-panel{
-    background:linear-gradient(180deg,rgba(26,26,30,.82),rgba(16,16,20,.86)) !important;
-    -webkit-backdrop-filter:blur(38px) saturate(180%) contrast(103%) !important;
-    backdrop-filter:blur(38px) saturate(180%) contrast(103%) !important;
-    border-left:1px solid rgba(255,255,255,.09);
-    box-shadow:0 0 60px rgba(0,0,0,.85),inset 1px 0 0 rgba(255,255,255,.05) !important;
-  }
-  .panel-overlay{
-    -webkit-backdrop-filter:blur(6px) saturate(120%);
-    backdrop-filter:blur(6px) saturate(120%);
-  }
-
-  /* القائمة الجانبية للأقسام — زجاج معتّم أنيق */
-  .shs-catmenu-panel{
-    -webkit-backdrop-filter:blur(34px) saturate(175%) contrast(103%) !important;
-    backdrop-filter:blur(34px) saturate(175%) contrast(103%) !important;
-    box-shadow:inset 1px 0 0 rgba(255,255,255,.05),0 0 50px rgba(0,0,0,.6) !important;
-  }
-  .shs-catmenu-overlay{
-    -webkit-backdrop-filter:blur(6px) saturate(120%) !important;
-    backdrop-filter:blur(6px) saturate(120%) !important;
-  }
-
-  /* نافذة TMDB المنبثقة — زجاج ناعم */
-  .tmdb-modal-overlay{
-    -webkit-backdrop-filter:blur(14px) saturate(150%);
-    backdrop-filter:blur(14px) saturate(150%);
-  }
-}
-
-/* على الأجهزة الضعيفة: نُخفّف حِدّة الـblur للحفاظ على الأداء */
-@media (max-width:640px){
-  @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
-    .navbar,.navbar.scrolled{
-      -webkit-backdrop-filter:blur(22px) saturate(180%) !important;
-      backdrop-filter:blur(22px) saturate(180%) !important;
-    }
-    .cat-navbar{
-      -webkit-backdrop-filter:blur(20px) saturate(170%) !important;
-      backdrop-filter:blur(20px) saturate(170%) !important;
-    }
-    .fp-panel,.np-panel,.m3u-panel,.ep-panel,.shs-catmenu-panel{
-      -webkit-backdrop-filter:blur(26px) saturate(165%) !important;
-      backdrop-filter:blur(26px) saturate(165%) !important;
-    }
-  }
-}
-
-/* Production UI polish: public interface */
-:focus-visible{outline:2px solid var(--accent)!important;outline-offset:3px}
-button,input,select,textarea{font:inherit}
-.navbar{border-bottom-color:rgba(255,255,255,.08)!important}.nav-btn,.shs-catmenu-btn{transition:background .18s ease,border-color .18s ease,color .18s ease!important}.nav-btn:hover,.shs-catmenu-btn:hover{transform:none!important}
-.cat-navbar{border-bottom:1px solid rgba(255,255,255,.07)!important}.cat-nav-btn{border-radius:8px!important;transition:background .18s ease,border-color .18s ease,color .18s ease!important}.cat-nav-btn:hover{transform:none!important;box-shadow:none!important}.cat-nav-btn.active{box-shadow:none!important}
-.slider-header{margin-bottom:12px!important}.slider-title{letter-spacing:0!important}.slider-cards-wrapper{gap:12px!important}.ch-card,.sr-card{border-color:rgba(255,255,255,.08)!important;box-shadow:0 5px 16px rgba(0,0,0,.24)!important;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease!important}.ch-card:hover,.sr-card:hover{transform:translateY(-3px) scale(1.01)!important;border-color:rgba(229,9,20,.55)!important;box-shadow:0 12px 26px rgba(0,0,0,.34)!important}.ch-thumb,.sr-poster{background:#121212!important}.ch-info,.sr-info{padding:10px!important}.ch-name,.sr-name{line-height:1.5!important}.ch-live-badge{box-shadow:none!important;animation:none!important}.ch-live-badge::before{box-shadow:none!important}.ch-play-btn{box-shadow:0 4px 12px rgba(0,0,0,.28)!important}.info-action-btn{border-radius:6px!important;transition:background .16s ease,border-color .16s ease,color .16s ease!important}.info-action-btn:hover{transform:none!important}
-.fp-panel,.np-panel,.m3u-panel,.ep-panel,.shs-catmenu-panel{box-shadow:0 16px 40px rgba(0,0,0,.42)!important}.panel-overlay,.shs-catmenu-overlay{backdrop-filter:blur(2px)!important}.shs-catmenu-item{border-radius:8px!important;transition:background .16s ease,color .16s ease!important}.shs-catmenu-item:hover{transform:none!important}.m3u-item,.ep-item{border-radius:8px!important;transition:background .16s ease,border-color .16s ease!important}
-.tmdb-modal,.tmdb-modal-box,.modal-content{box-shadow:0 20px 46px rgba(0,0,0,.45)!important}@media(max-width:760px){.slider-cards-wrapper{gap:9px!important}.ch-card:hover,.sr-card:hover{transform:none!important;box-shadow:0 5px 16px rgba(0,0,0,.24)!important}.nav-btn,.shs-catmenu-btn{transition:none!important}.cat-nav-btn{min-height:34px!important}}
-/* Channel cards: match the portrait hierarchy used for series. */
-.ch-thumb{aspect-ratio:2/3!important;background:#121212!important}.ch-thumb img{object-fit:contain!important;padding:14%!important}.ch-card .ch-info{min-height:76px!important}.ch-card .ch-live-badge{top:8px!important;right:8px!important;padding:4px 7px!important;border-radius:4px!important;letter-spacing:.05em!important}.ch-card .ch-fmt-badge{top:8px!important;left:8px!important;padding:3px 5px!important;border-radius:4px!important}.ch-card .ch-quality-badge{bottom:8px!important;right:8px!important;padding:3px 5px!important;border-radius:4px!important}.ch-card .ch-play-btn{width:40px!important;height:40px!important}@media(max-width:760px){.ch-card .ch-info{min-height:68px!important}.ch-thumb img{padding:12%!important}}
-/* Fast, minimal loading screen. */
-#nxInitLoader{background:#090a0c!important;transition:opacity .22s ease,visibility .22s ease!important}.nx-loader-circle{display:none!important}.nx-load-indicator{position:relative;display:block;width:34px;height:34px;animation:nxLoadSpin .9s steps(12,end) infinite}.nx-load-indicator i{position:absolute;top:1px;left:50%;width:3px;height:9px;margin-left:-1.5px;border-radius:99px;background:#f3f4f6;transform-origin:1.5px 16px}.nx-load-indicator i:nth-child(1){transform:rotate(0deg);opacity:1}.nx-load-indicator i:nth-child(2){transform:rotate(30deg);opacity:.92}.nx-load-indicator i:nth-child(3){transform:rotate(60deg);opacity:.84}.nx-load-indicator i:nth-child(4){transform:rotate(90deg);opacity:.76}.nx-load-indicator i:nth-child(5){transform:rotate(120deg);opacity:.68}.nx-load-indicator i:nth-child(6){transform:rotate(150deg);opacity:.60}.nx-load-indicator i:nth-child(7){transform:rotate(180deg);opacity:.52}.nx-load-indicator i:nth-child(8){transform:rotate(210deg);opacity:.44}.nx-load-indicator i:nth-child(9){transform:rotate(240deg);opacity:.36}.nx-load-indicator i:nth-child(10){transform:rotate(270deg);opacity:.28}.nx-load-indicator i:nth-child(11){transform:rotate(300deg);opacity:.20}.nx-load-indicator i:nth-child(12){transform:rotate(330deg);opacity:.12}@keyframes nxLoadSpin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.nx-load-indicator{animation:none!important}}

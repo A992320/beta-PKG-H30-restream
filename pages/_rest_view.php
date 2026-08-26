@@ -309,13 +309,22 @@
 
 <div class="theme-panel" id="themePanel">
   <div class="theme-panel-hd">
-    <div class="theme-panel-title"><i class="fas fa-palette"></i> 🎨 مركز الثيمات</div>
+    <div class="theme-panel-title"><i class="fas fa-palette"></i> مركز الثيمات</div>
     <button class="theme-panel-close" onclick="toggleThemePanel()"><i class="fas fa-times"></i></button>
   </div>
   <div class="theme-panel-body">
 
-    <div class="theme-section-title">✨ الثيمات الجاهزة</div>
-    <div class="theme-presets">
+    <div class="theme-section-title">تصاميم احترافية</div>
+        <div class="theme-presets theme-presets-professional">
+      <div class="theme-card" id="thc-linear" onclick="applyThemePreset('linear')"><div class="theme-card-preview theme-preview-linear">Linear</div><div class="theme-card-name">Linear</div><div class="theme-card-desc">داكن هادئ ومنظم</div></div>
+      <div class="theme-card" id="thc-shadcn" onclick="applyThemePreset('shadcn')"><div class="theme-card-preview theme-preview-shadcn">shadcn/ui</div><div class="theme-card-name">shadcn/ui</div><div class="theme-card-desc">حيادي واضح ومركّز</div></div>
+      <div class="theme-card" id="thc-ant" onclick="applyThemePreset('ant')"><div class="theme-card-preview theme-preview-ant">Ant Design</div><div class="theme-card-name">Ant Design</div><div class="theme-card-desc">أزرق مؤسسي نظيف</div></div>
+      <div class="theme-card" id="thc-material3" onclick="applyThemePreset('material3')"><div class="theme-card-preview theme-preview-material3">Material 3</div><div class="theme-card-name">Material Design 3</div><div class="theme-card-desc">ناعم وواضح الملامح</div></div>
+      <div class="theme-card" id="thc-apple" onclick="applyThemePreset('apple')"><div class="theme-card-preview theme-preview-apple">Apple HIG</div><div class="theme-card-name">Apple HIG</div><div class="theme-card-desc">فاتح ومتوازن</div></div>
+      <div class="theme-card" id="thc-vercel" onclick="applyThemePreset('vercel')"><div class="theme-card-preview theme-preview-vercel">Vercel</div><div class="theme-card-name">Vercel Minimal</div><div class="theme-card-desc">أبيض وأسود مختصر</div></div>
+    </div>
+
+    <div class="theme-section-title" style="margin-top:16px">الثيمات الأخرى</div><div class="theme-presets">
 
       <div class="theme-card" id="thc-default" onclick="applyThemePreset('default')">
         <div class="theme-card-preview" style="background:linear-gradient(135deg,#111,#1a1a1a);color:#E50914;border:1px solid rgba(229,9,20,.3)">SHASHITY</div>
@@ -415,7 +424,7 @@
 
     </div>
 
-    <div class="theme-section-title" style="margin-top:16px">🖌️ CSS مخصص</div>
+    <div class="theme-section-title" style="margin-top:16px">CSS مخصص</div>
     <div class="custom-css-wrap">
       <textarea class="custom-css-textarea" id="customCssInput" placeholder=":root {
   --red: #E50914;

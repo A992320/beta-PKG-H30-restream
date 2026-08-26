@@ -9,5 +9,7 @@
 </head>
 <body>
 <!-- INIT LOADER -->
-<div id="nxInitLoader"><div class="nx-loader-circle"></div></div>
+<div id="nxInitLoader" role="status" aria-label="جارٍ تحميل الموقع">
+  <span class="nx-load-indicator" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+</div>
 
