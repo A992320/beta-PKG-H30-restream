@@ -2722,19 +2722,16 @@ function _startExternalAudio(audioUrl,video){
            كل القيود أُزيلت: لا سقف للجودة، لا سقف للسرعة، لا سقف للمخزن.
            المشغّل يأخذ أعلى جودة متاحة ويستهلك كامل سرعة الاتصال. */
 
-        // ── مخزن قصير ومنضبط: يبدأ سريعاً ثم يحافظ على هامش أمان ──
-        maxBufferLength: 15,
-        maxMaxBufferLength: 30,
+        // البث عبر Restream يحتاج هامشاً أكبر من المصدر المباشر لتفادي التقطيع.
+        maxBufferLength: PL._hlsLocalStream ? 30 : 15,
+        maxMaxBufferLength: PL._hlsLocalStream ? 60 : 30,
         maxBufferSize: 40 * 1000 * 1000,
-        backBufferLength: 20,
+        backBufferLength: PL._hlsLocalStream ? 30 : 20,
         maxBufferHole: 0.8,
 
-        /* قائمة Restream تنتج مقاطع 4 ثوانٍ. العدّ السابق (7 مقاطع)
-           كان يضع المشغل 28 ثانية خلف البث؛ لذلك كان VLC يبدأ فوراً
-           بينما صفحة الموقع تنتظر. نبدأ من مقطع واحد آمن (4 ثوانٍ). */
-        liveSyncDuration: 2.5,
-        liveMaxLatencyDuration: 12,
-        initialLiveManifestSize: 1,
+        liveSyncDuration: PL._hlsLocalStream ? 8 : 2.5,
+        liveMaxLatencyDuration: PL._hlsLocalStream ? 24 : 12,
+        initialLiveManifestSize: PL._hlsLocalStream ? 3 : 1,
         liveDurationInfinity: true,
         maxLiveSyncPlaybackRate: 1.0,     // يمنع تسريع الصوت عند تعافي البث
 
