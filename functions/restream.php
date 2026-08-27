@@ -511,7 +511,7 @@ function rsStart(string $key, string $srcUrl, bool $compatVideo = false, string 
                   المدة تنمو، فلا يعرض Infinity:NaN. */
          . ($isVod
              ? ' -hls_list_size 0 -hls_playlist_type event -hls_flags independent_segments+append_list'
-             : ' -hls_list_size 8 -hls_flags independent_segments+delete_segments+append_list+omit_endlist')
+             : ' -hls_list_size 8 -hls_flags independent_segments+delete_segments+append_list+omit_endlist+temp_file')
          . ' -hls_allow_cache 0'
          . ' -hls_segment_filename ' . escapeshellarg($dir . '/s%05d.m4s')
          . ' ' . escapeshellarg($idx)

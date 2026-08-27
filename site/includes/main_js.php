@@ -303,9 +303,10 @@ try{ window.App = App; }catch(e){}
 /* ════ DEVICE DETECTION — مرة واحدة في أول الكود ════ */
 const _UA=(function(){
   const ua=navigator.userAgent||'';
-  const isIOS=/iPad|iPhone|iPod/.test(ua)&&!window.MSStream;
-  const isAndroidTV=/Android/i.test(ua)&&(/TV|STB|BOX|bravia|shield|mibox/i.test(ua)||!/Mobile/i.test(ua));
-  const isAndroidMobile=/Android/i.test(ua)&&/Mobile/i.test(ua)&&!isAndroidTV;
+  const isIPadOS=navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1;
+  const isIOS=(/iPad|iPhone|iPod/.test(ua)||isIPadOS)&&!window.MSStream;
+  const isAndroidTV=/Android/i.test(ua)&&/(Android TV|SMART-TV|STB|bravia|shield|mibox|AFT)/i.test(ua);
+  const isAndroidMobile=/Android/i.test(ua)&&!isAndroidTV;
   // TV الحقيقي فقط — لا نصنف الكمبيوتر كـ TV مطلقاً
   const isSmartTV=/SmartTV|SMART-TV|Tizen|WebOS|HbbTV|VIDAA|NetCast|Hisense|Philips|TCL|BRAVIA/i.test(ua);
   return{
@@ -3501,20 +3502,18 @@ async function toggleFullscreen(){
       return;
     }
 
-    /* 2. iOS Safari → webkitEnterFullscreen على الـ video */
-    if(_isIOS){
+    /* 2. iOS/iPadOS: الفيديو الأصلي أولاً، ثم المسار القياسي عند عدم توفره. */
+    if(_isIOS && vid && typeof vid.webkitEnterFullscreen==='function'){
       try{
-        if(vid && vid.webkitEnterFullscreen){
-          vid.webkitEnterFullscreen();
-          _fsActive = true;
-          _fsMethod = 'ios';
-          _setFsIcon(true);
-        }
+        vid.webkitEnterFullscreen();
+        _fsActive = true;
+        _fsMethod = 'ios';
+        _setFsIcon(true);
+        return;
       }catch(e){}
-      return;
     }
 
-    /* 3. كمبيوتر / Android Mobile → Fullscreen API على الـ overlay */
+    /* 3. المتصفحات الأخرى والأجهزة اللوحية: Fullscreen API على الـ overlay */
     const req = ov.requestFullscreen
              || ov.webkitRequestFullscreen
              || ov.mozRequestFullScreen
@@ -3527,7 +3526,7 @@ async function toggleFullscreen(){
         _fsMethod = 'api';
         _setFsIcon(true);
         // قفل landscape على الموبايل فقط
-        if(_UA.isAndroidMobile) _lockL();
+        if(_UA.isAndroid && !_isTV) _lockL();
       }catch(err){
         // Fullscreen API رفض (مثل iframe sandbox) → CSS fallback
         _cssFS(true);
@@ -3589,7 +3588,7 @@ async function toggleFullscreen(){
       _fsActive=true;
       _setFsIcon(true);
       // قفل landscape على الموبايل فقط لا الكمبيوتر
-      if(_UA.isAndroidMobile) _lockL();
+      if(_UA.isAndroid && !_isTV) _lockL();
     }else{
       // خرج من fullscreen (زر Esc أو زر المتصفح)
       if(_fsMethod!=='css'){
