@@ -104,15 +104,48 @@ let PLANS = [], CUR = '$', cpPage = 1, suPage = 1, lastCodes = [];
 /* ── نداء الواجهة ──
    نقطة نهاية مستقلة (subs_api.php) لا location.href، لأن اللوحة
    تُرجع HTML كاملاً لأي POST غير معروف وسيفشل تحليل JSON بصمت. */
-function API(act, data){
+let _sessionRenewal = null;
+
+/* يجدد نشاط جلسة المدير بلا إعادة تحميل. لا يفتح هذا الطلب أي صلاحية
+   جديدة؛ الخادم يعيده فقط للجلسة الإدارية الموجودة بالفعل. */
+function renewAdminSession(){
+  if (_sessionRenewal) return _sessionRenewal;
+  const fd = new FormData(); fd.append('act', 'session_ping');
+  _sessionRenewal = fetch('subs_api.php', {method:'POST', body:fd, credentials:'same-origin'})
+    .then(r => r.json().catch(() => ({success:false})))
+    .then(d => {
+      if (!d || !d.success || !d.csrf_token) return false;
+      window.csrfToken = String(d.csrf_token);
+      document.querySelectorAll('input[name="csrf_token"]').forEach(el => { el.value = window.csrfToken; });
+      return true;
+    })
+    .catch(() => false)
+    .finally(() => { _sessionRenewal = null; });
+  return _sessionRenewal;
+}
+
+function API(act, data, retried){
   const fd = new FormData();
   fd.append('act', act);
   for (const k in (data||{})) fd.append(k, data[k]==null ? '' : String(data[k]));
   if (window.csrfToken) fd.append('csrf_token', window.csrfToken);
   return fetch('subs_api.php', {method:'POST', body:fd, credentials:'same-origin'})
     .then(r => r.json().catch(() => ({success:false, error:'server_error'})))
+    .then(d => {
+      if (!retried && d && d.error === 'csrf') {
+        return renewAdminSession().then(ok => ok ? API(act, data, true) : d);
+      }
+      return d;
+    })
     .catch(() => ({success:false, error:'__net'}));
 }
+
+/* نبضة كل أربع دقائق، مع نبضة فورية عند العودة إلى التبويب. */
+(function keepAdminSessionAlive(){
+  const ping = () => { renewAdminSession(); };
+  window.setInterval(ping, 240000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) ping(); });
+})();
 
 /** يحوّل رمز الخطأ إلى نص مفهوم. */
 function emsg(d){
@@ -280,16 +313,26 @@ function loadSubsSettings(){
   });
 }
 
+window.subsCurrencyPreview = function(){
+  const input = $$('setCurSymbol');
+  CUR = (input && input.value.trim()) || '$';
+  renderPlans();
+};
 window.subsSaveSettings = function(){
+  const symbol = $$('setCurSymbol').value.trim() || '$';
+  const code = $$('setCurCode').value.trim() || 'USD';
+  CUR = symbol;
+  renderPlans();
   API('settings_save', {
     index_protection:   $$('setIndexProtection').checked ? 1 : '',
     allow_registration: $$('setAllowReg').checked ? 1 : '',
-    currency_symbol:    $$('setCurSymbol').value,
-    currency_code:      $$('setCurCode').value
+    currency_symbol:    symbol,
+    currency_code:      code
   }).then(d => {
-    if (!d.success) { say('subsSetAlert', emsg(d), 'e'); return; }
+    if (!d.success) { say('subsSetAlert', emsg(d), 'e'); loadPlans(); return; }
+    CUR = d.currency_symbol || symbol;
+    renderPlans();
     say('subsSetAlert', T.saved, 's');
-    loadPlans();  // رمز العملة قد تغيّر
   });
 };
 

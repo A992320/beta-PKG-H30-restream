@@ -562,6 +562,154 @@ const DISABLED_CATEGORY_IDS = <?php echo json_encode($disabled_category_ids); ?>
 const DISABLED_CHANNEL_IDS = <?php echo json_encode($disabled_channel_ids); ?>;
 const HIDE_MOST_WATCHED = <?php echo $hide_most_watched ? 'true' : 'false'; ?>;
 const HIDE_SUGGESTIONS  = <?php echo $hide_suggestions ? 'true' : 'false'; ?>;
+let _homeRowsObserver = null;
+const SHS_HOME_GROUP_KEY='shs_home_group';
+
+/* المجموعة العلوية (القنوات/الأفلام/Xtream) شاشة مستقلة عن صفحة القسم.
+   نحفظها في الرابط وفي الجلسة حتى لا تعود دائماً إلى القنوات بعد F5. */
+function shsReadHomeGroup(){
+  try{
+    const fromUrl=(new URL(window.location.href)).searchParams.get('home_group');
+    if(fromUrl)return fromUrl;
+  }catch(e){}
+  try{return sessionStorage.getItem(SHS_HOME_GROUP_KEY)||localStorage.getItem(SHS_HOME_GROUP_KEY)||'';}catch(e){return '';}
+}
+function shsSaveHomeGroup(key){
+  if(!key)return;
+  try{sessionStorage.setItem(SHS_HOME_GROUP_KEY,key);localStorage.setItem(SHS_HOME_GROUP_KEY,key);}catch(e){}
+  try{
+    const url=new URL(window.location.href);
+    if(url.searchParams.get('home_group')===key)return;
+    url.searchParams.set('home_group',key);
+    history.replaceState(history.state,'',url.pathname+url.search+url.hash);
+  }catch(e){}
+}
+
+/* صفحة رئيسية خفيفة: فصل المصادر إلى مجموعات، وبناء صفوف المجموعة المفتوحة فقط. */
+function shsBuildSeparatedHomeGroups(wrap){
+  const isXtream = c => parseInt(c.xtream_account_id || 0, 10) > 0;
+  const hasLive = c => parseInt(c.channel_count || 0, 10) > 0;
+  const hasVod = c => parseInt(c.series_count || 0, 10) > 0;
+  /* مستورد Xtream يضع الأفلام والمسلسلات في نفس الجدول التقني، لذلك
+     نعتمد أيقونة القسم (ومؤشر الاسم القديم كبديل) للفصل البصري الدقيق. */
+  const isXtreamMovie = c => /(?:fa-film|🎬|movie|فيلم|أفلام)/i.test(`${c.icon || ''} ${c.name || ''}`);
+  const standard = App.cats.filter(c => !isXtream(c));
+  const xtream = App.cats.filter(c => isXtream(c) && (hasLive(c) || hasVod(c)));
+  const xtreamLive = xtream.filter(hasLive);
+  const xtreamMovies = xtream.filter(c => hasVod(c) && isXtreamMovie(c));
+  /* أي قسم Xtream للفيديو ليس فيلماً يُعامل كمسلسلات؛ فلا يختلط النوعان. */
+  const xtreamSeries = xtream.filter(c => hasVod(c) && !isXtreamMovie(c));
+  const groups = {
+    live: {
+      label: 'القنوات المباشرة', icon: '📡', color: '#38bdf8',
+      rows: standard.filter(hasLive).map(c => ({cat:c,type:'channels',count:parseInt(c.channel_count||0),sub:false}))
+    },
+    vod: {
+      label: 'الأفلام والمسلسلات', icon: '🎬', color: '#c084fc',
+      rows: standard.filter(hasVod).map(c => ({cat:c,type:'series',count:parseInt(c.series_count||0),sub:false}))
+    },
+    xtream_live: {
+      label: 'قنوات Xtream', icon: '📡', color: '#38bdf8',
+      rows: xtreamLive.map(c => ({cat:c,type:'channels',count:parseInt(c.channel_count||0),sub:'live'}))
+    },
+    xtream_movies: {
+      label: 'أفلام Xtream', icon: '🎬', color: '#f59e0b',
+      rows: xtreamMovies.map(c => ({cat:c,type:'series',count:parseInt(c.series_count||0),sub:'movie'}))
+    },
+    xtream_series: {
+      label: 'مسلسلات Xtream', icon: '📺', color: '#c084fc',
+      rows: xtreamSeries.map(c => ({cat:c,type:'series',count:parseInt(c.series_count||0),sub:'series'}))
+    }
+  };
+  const available = Object.keys(groups).filter(key => groups[key].rows.length);
+  if(!available.length){
+    wrap.innerHTML='<div style="padding:40px;text-align:center;color:var(--text-muted)">لا يوجد محتوى متاح</div>';
+    const topTabs=document.getElementById('shsNetflixTopTabs'); if(topTabs) topTabs.hidden=true;
+    const railControls=document.getElementById('shsNetflixRailControls'); if(railControls) railControls.hidden=true;
+    return;
+  }
+  const hub=document.createElement('section');
+  hub.id='shsHomeContentHub';
+  hub.style.cssText='margin:0 0 28px;padding:0 20px;';
+  hub.innerHTML='<div id="shsActiveHomeRows"></div>';
+  wrap.appendChild(hub);
+  const topTabs=document.getElementById('shsNetflixTopTabs');
+  const railControls=document.getElementById('shsNetflixRailControls');
+  if(topTabs){
+    topTabs.hidden=false;
+    if(railControls) railControls.hidden=false;
+  }
+  App.homeContentGroups={groups:groups, available:available, hub:hub};
+  const savedGroup=shsReadHomeGroup();
+  const preferred=(savedGroup && available.includes(savedGroup)) ? savedGroup : ((App.activeHomeGroup && available.includes(App.activeHomeGroup)) ? App.activeHomeGroup : (available.includes('live') ? 'live' : available[0]));
+  window.shsSelectHomeGroup(preferred, true);
+}
+
+window.shsSelectHomeGroup=function(key, initial){
+  const state=App.homeContentGroups;
+  if(!state || !state.groups[key] || !state.available.includes(key)) return;
+  App.activeHomeGroup=key;
+  if(!initial) shsSaveHomeGroup(key);
+  if(_homeRowsObserver){ _homeRowsObserver.disconnect(); _homeRowsObserver=null; }
+  const active=state.groups[key];
+  const tabs=document.getElementById('shsNetflixTopTabs');
+  const railControls=document.getElementById('shsNetflixRailControls');
+  const rowsHost=state.hub.querySelector('#shsActiveHomeRows');
+  if(tabs){
+    const cats=[]; const seen=new Set();
+    active.rows.forEach(entry=>{ const c=entry.cat; if(c && !seen.has(String(c.id))){ seen.add(String(c.id)); cats.push(c); } });
+    const groupTabs=state.available.map(groupKey=>{
+      const group=state.groups[groupKey], on=groupKey===key;
+      return '<button type="button" role="tab" aria-selected="'+(on?'true':'false')+'" class="shs-nx-top-tab'+(on?' is-active':'')+'" onclick="shsSelectHomeGroup(\''+groupKey+'\')">'+group.label+'</button>';
+    }).join('');
+    const catIcon=c=>typeof shsCatIconSVG==='function' ? shsCatIconSVG(c.name||'','13px') : '<span>▦</span>';
+    const catTabs=cats.map(c=>'<button type="button" class="shs-nx-top-category" data-home-category="'+Number(c.id)+'" title="'+esc(c.name||'')+'"><span class="shs-nx-category-icon" aria-hidden="true">'+catIcon(c)+'</span><span>'+esc(c.name||'قسم')+'</span></button>').join('');
+    const allCategories='<button type="button" class="shs-nx-top-all" data-shs-show-categories><span class="shs-nx-all-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><span>كل الأقسام</span></button>';
+    tabs.innerHTML=allCategories+'<span class="shs-nx-top-divider" aria-hidden="true"></span>'+groupTabs+(catTabs?'<span class="shs-nx-top-divider" aria-hidden="true"></span>'+catTabs:'');
+    tabs.querySelectorAll('[data-home-category]').forEach(btn=>btn.addEventListener('click',()=>{
+      const id=Number(btn.dataset.homeCategory), cat=App.cats.find(c=>Number(c.id)===id);
+      if(cat && typeof openCategoryView==='function') openCategoryView(id,cat.name||'القسم');
+    }));
+    tabs.querySelector('[data-shs-show-categories]')?.addEventListener('click',()=>{
+      const first=tabs.querySelector('[data-home-category]');
+      if(first) first.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+    });
+    railControls?.querySelectorAll('[data-shs-scroll]').forEach(btn=>btn.onclick=()=>{
+      const step=Math.max(220,Math.round(tabs.clientWidth*.58));
+      tabs.scrollBy({left:btn.dataset.shsScroll==='next'?-step:step,behavior:'smooth'});
+    });
+    if(!tabs.__shsHorizontalScroll){
+      tabs.addEventListener('wheel',event=>{
+        if(Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+        event.preventDefault();
+        tabs.scrollBy({left:event.deltaY,behavior:'smooth'});
+      },{passive:false});
+      tabs.addEventListener('keydown',event=>{
+        const controls=[...tabs.querySelectorAll('button')];
+        const current=controls.indexOf(document.activeElement);
+        if(current<0) return;
+        let next=null;
+        if(event.key==='ArrowRight') next=current-1;
+        if(event.key==='ArrowLeft') next=current+1;
+        if(event.key==='Home') next=0;
+        if(event.key==='End') next=controls.length-1;
+        if(next===null) return;
+        event.preventDefault();
+        const target=controls[(next+controls.length)%controls.length];
+        target?.focus({preventScroll:true});
+        target?.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+      });
+      tabs.__shsHorizontalScroll=true;
+    }
+  }
+  rowsHost.innerHTML='';
+  active.rows.forEach(entry=>buildSliderRow(rowsHost,entry.cat,entry.type,entry.count,entry.sub));
+  if(!initial){
+    fetchAllRows();
+    window.scrollTo({top:Math.max(0,state.hub.getBoundingClientRect().top+window.scrollY-110),behavior:'smooth'});
+  }
+};
+
 async function loadAndBuildNetflixHome(){
   if(App.license){
     document.getElementById('netflixStyleSliders').innerHTML='<div style="text-align:center;padding:60px 20px;color:var(--text-muted)"><p>الرخصة منتهية</p><a href="activate.php" style="display:inline-block;margin-top:16px;padding:10px 24px;background:var(--red);color:#fff;border-radius:99px;font-weight:800">تجديد الرخصة</a></div>';
@@ -579,17 +727,15 @@ async function loadAndBuildNetflixHome(){
     const wrap=document.getElementById('netflixStyleSliders');
     wrap.innerHTML='';
     if(!App.cats.length){wrap.innerHTML='<div style="padding:40px;text-align:center;color:var(--text-muted)">لا يوجد محتوى متاح</div>';return;}
-    App.cats.forEach(c=>{
-      const seriesCnt=parseInt(c.series_count||0);
-      const channelCnt=parseInt(c.channel_count||0);
-      if(channelCnt>0&&seriesCnt===0){buildSliderRow(wrap,c,'channels',channelCnt);}
-      else if(seriesCnt>0&&channelCnt===0){buildSliderRow(wrap,c,'series',seriesCnt);}
-      else if(channelCnt>0&&seriesCnt>0){buildSliderRow(wrap,c,'channels',channelCnt);buildSliderRow(wrap,c,'series',seriesCnt,true);}
-      else{buildSliderRow(wrap,c,'channels',6);}
-    });
+    shsBuildSeparatedHomeGroups(wrap);
+    /* شبكة أمان: لو كان المتصفح قد فتح القسم قبل أن يكتمل تحديث العنوان،
+       نحوّل آخر قسم محفوظ إلى رابط الآن — بعد وصول قائمة الأقسام فعلياً. */
+    try{ shsPromoteSavedViewToHash(); }catch(e){}
     /* استعادة ما كان المستخدم يشاهده قبل التحديث (مسلسل/قسم/بحث/فيديو).
        نبدأها قبل انتظار صفوف الرئيسية، فلا يرى المستخدم الرئيسية ثم قفزة. */
-    const _hadState = !!(window.location.hash || '').replace(/^#/,'');
+    /* يشمل الـhash ومعامل section الدائم، حتى لا ترسم الرئيسية قبل القسم. */
+    const _initialRoute=shsGetHash();
+    const _hadState=!!(_initialRoute.q||_initialRoute.c||_initialRoute.s||_initialRoute.ch);
     const _restorePromise = (async ()=>{
       try{ return await shsRestoreFromHash(); }
       catch(e){ console.error('restore:', e); return false; }
@@ -629,7 +775,8 @@ async function loadAndBuildNetflixHome(){
 function buildSliderRow(wrap,c,type,count,isSubRow){
   const rowId=c.id+'_'+type;
   const isVOD=(type==='series');
-  const rowLabel=isSubRow?(isVOD?c.name+' — أفلام':c.name+' — قنوات'):c.name;
+  const subLabel=isSubRow==='series'?'مسلسلات':'أفلام';
+  const rowLabel=isSubRow?(isVOD?c.name+' — '+subLabel:c.name+' — قنوات'):c.name;
   const skelN=Math.min(8,Math.max(4,count));
   const row=document.createElement('div');
   row.className='netflix-slider-row';
@@ -653,7 +800,9 @@ function buildSliderRow(wrap,c,type,count,isSubRow){
 }
 
 async function fetchAllRows(){
-  const allRows=Array.from(document.querySelectorAll('.netflix-slider-row[data-loaded="0"]'));
+  if(_homeRowsObserver){ _homeRowsObserver.disconnect(); _homeRowsObserver=null; }
+  const host=document.getElementById('shsActiveHomeRows');
+  const allRows=Array.from((host||document).querySelectorAll('.netflix-slider-row[data-loaded="0"]'));
   if(!allRows.length)return;
   // Keep the first paint responsive on phones and slow/data-saving connections.
   const connection=navigator.connection||navigator.mozConnection||navigator.webkitConnection;
@@ -676,6 +825,7 @@ async function fetchAllRows(){
         });
       });
     },{rootMargin:'400px 0px'});
+    _homeRowsObserver=obs;
     restRows.forEach(row=>obs.observe(row));
   }
 }
@@ -1334,6 +1484,24 @@ function shsSetHash(obj){
   }
   const h = parts.length ? ('#' + parts.join('&')) : '';
   const cur = window.location.hash || '';
+  /* نحتفظ بالقسم أيضاً في معامل URL عادي. بعض المتصفحات/طبقات الحماية
+     تتعامل مع # كتنقّل داخلي وقد تفقده عند F5، أما ?section= فيبقى جزءاً
+     من عنوان الصفحة ويُقرأ قبل بناء الرئيسية. */
+  let routeChanged=false;
+  try{
+    const currentRoute=new URL(window.location.href);
+    const currentSection=currentRoute.searchParams.get('section')||'';
+    const wantedSection=(obj&&obj.c)?String(obj.c):'';
+    if(wantedSection) currentRoute.searchParams.set('section',wantedSection);
+    else currentRoute.searchParams.delete('section');
+    routeChanged=currentSection!==wantedSection;
+    const full=currentRoute.pathname+currentRoute.search+h;
+    if(cur===h&&!routeChanged)return;
+    _shsRouting=true;
+    history.replaceState(history.state,'',full);
+    setTimeout(()=>{ _shsRouting=false; },0);
+    return;
+  }catch(e){}
   if(cur === h) return;
   _shsRouting = true;
   try{
@@ -1353,6 +1521,13 @@ function shsGetHash(){
     const k = kv.slice(0, i), v = decodeURIComponent(kv.slice(i + 1));
     if(v) o[k] = v;
   });
+  /* استعادة القسم من المعامل الدائم حتى إن لم يعد الـhash موجوداً. */
+  try{
+    if(!o.c){
+      const section=(new URL(window.location.href)).searchParams.get('section');
+      if(section) o.c=section;
+    }
+  }catch(e){}
   return o;
 }
 
@@ -1737,6 +1912,9 @@ if(typeof openCategoryView==='function' && !openCategoryView.__shsFast){
   var _shsOrigOpenCategoryView=openCategoryView;
   openCategoryView=async function(catId,catName){
     App.currentCategoryView={id:catId,name:catName};
+    /* هذا الغلاف السريع يستبدل الدالة الأصلية؛ لذلك نكتب رابط القسم هنا
+       صراحةً. يبقى #c في العنوان عند F5 ويستعيده الموجّه بعد تحميل الأقسام. */
+    try{ shsSetHash({c:catId}); }catch(e){}
     try{ setActiveCatNavBtn(catId); }catch(e){}
     /* إظهار قسم العرض وإخفاء البقية فوراً */
     try{
@@ -1800,8 +1978,37 @@ if(typeof openCategoryView==='function' && !openCategoryView.__shsFast){
 }
 
 /* [SHS-VIEWRESTORE] حفظ/استعادة موضع التصفّح عند تحديث الصفحة (إضافة فقط) */
-function shsSaveView(obj){try{sessionStorage.setItem('shs_view',JSON.stringify(obj));}catch(e){}}
-function shsClearView(){try{sessionStorage.removeItem('shs_view');}catch(e){}}
+const SHS_VIEW_KEY='shs_view', SHS_VIEW_BACKUP_KEY='shs_view_backup';
+/* نسختان محليتان: session للتبويب الحالي وlocal كاحتياط إن أعاد المتصفح
+   إنشاء الجلسة أثناء F5. يُمسحان معاً عند اختيار الرجوع للرئيسية. */
+function shsSaveView(obj){
+  try{var data=JSON.stringify(obj);sessionStorage.setItem(SHS_VIEW_KEY,data);localStorage.setItem(SHS_VIEW_BACKUP_KEY,data);}catch(e){}
+}
+function shsReadView(){
+  var raw='';
+  try{raw=sessionStorage.getItem(SHS_VIEW_KEY)||localStorage.getItem(SHS_VIEW_BACKUP_KEY)||'';}catch(e){}
+  if(!raw)return null;
+  try{return JSON.parse(raw);}catch(e){return null;}
+}
+function shsClearView(){
+  try{sessionStorage.removeItem(SHS_VIEW_KEY);localStorage.removeItem(SHS_VIEW_BACKUP_KEY);}catch(e){}
+}
+/* لا نستعيد من الجلسة مباشرةً قبل وصول الأقسام؛ نحولها إلى رابط أولاً.
+   بهذا تستخدم كل الطرق (F5، إعادة فتح التبويب، وتأخر الشبكة) نفس موجّه موثوق. */
+function shsPromoteSavedViewToHash(){
+  if((window.location.hash||'').replace(/^#/,'').trim()) return false;
+  var d=shsReadView();
+  if(!d||!d.id)return false;
+  if(d.type==='category'){
+    shsSetHash({c:d.id});
+    return true;
+  }
+  if(d.type==='series'){
+    shsSetHash({s:d.id});
+    return true;
+  }
+  return false;
+}
 
 /* التفاف حول عرض القسم لحفظ حالته */
 if(typeof openCategoryView==='function' && !openCategoryView.__shsViewHook){
@@ -1847,14 +2054,21 @@ if(typeof backFromEpisodesToHome==='function' && !backFromEpisodesToHome.__shsCl
   backFromEpisodesToHome.__shsClearHook=true;
 }
 
-/* الاستعادة عند تحميل الصفحة */
-function shsRestoreView(){
-  var raw;try{raw=sessionStorage.getItem('shs_view');}catch(e){return;}
-  if(!raw)return;
-  var d;try{d=JSON.parse(raw);}catch(e){return;}
+/* الاستعادة عند تحميل الصفحة — لا تبدأ قبل أن تصل الأقسام من الخادم.
+   هذا يمنع الرئيسية من رسم نفسها فوق القسم عند اتصال بطيء. */
+function shsRestoreView(attempt){
+  attempt=parseInt(attempt||0,10);
+  /* الرابط هو المصدر الموثوق عند التحديث: نستعيده فقط بعد اكتمال تحميل
+     الأقسام في shsRestoreFromHash، ولا نسمح لاستعادة الجلسة المبكرة أن تعيد الرئيسية. */
+  try{ if((window.location.hash||'').replace(/^#/,'').trim()) return; }catch(e){}
+  var d=shsReadView();
   if(!d||!d.type)return;
   /* لا نستعيد إن كان هناك مشغّل قيد الاستعادة (shs_restore له الأولوية) */
   try{if(sessionStorage.getItem('shs_restore'))return;}catch(e){}
+  if((d.type==='category'||d.type==='series')&&(!window.App||!Array.isArray(App.cats)||!App.cats.length)){
+    if(attempt<60)setTimeout(function(){shsRestoreView(attempt+1);},100);
+    return;
+  }
   try{
     if(d.type==='category'){
       if(typeof openCategoryView==='function')openCategoryView(d.id,d.name);
@@ -1871,6 +2085,14 @@ if(document.readyState==='loading'){
 }else{
   setTimeout(shsRestoreView,350);
 }
+/* ضمان أخير للحالات التي يضغط فيها المستخدم تحديث أثناء حركة الانتقال. */
+window.addEventListener('pagehide',function(){
+  try{
+    if(App.currentCategoryView&&App.currentCategoryView.id){
+      shsSaveView({type:'category',id:App.currentCategoryView.id,name:App.currentCategoryView.name||''});
+    }
+  }catch(e){}
+});
 /* [SHS-VIEWRESTORE-END] */
 /* [SHS-CATVIEW-JS-END] */
 function syncCatNavbarOffset(){
@@ -1890,16 +2112,9 @@ window.addEventListener('resize',()=>{ if(document.getElementById('catNavbar').s
 /* [تم حذف البحث الصوتي] — أُزيل الزر من شريط البحث ومعه كود SpeechRecognition. */
 
 /* ════ PLAYER STATE ════ */
-const PL={hls:null,dash:null,flv:null,vol:1,muted:false,idle:null,subtitleOn:false,subtitleTitle:'',subtitleFetchEnabled:false,epPanelOpen:false,m3uPanelOpen:false,m3uEntries:[],m3uIdx:-1,userPaused:false,backupUrl:'',usedBackup:false,audioUrl:'',audioDelay:0,serverMuxAudio:false,externalAudio:null,audioHls:null,audioActive:false,audioSyncTimer:null};
+const PL={hls:null,dash:null,flv:null,vol:1,muted:false,idle:null,subtitleOn:false,epPanelOpen:false,m3uPanelOpen:false,m3uEntries:[],m3uIdx:-1,userPaused:false,backupUrl:'',usedBackup:false,audioUrl:'',audioDelay:0,serverMuxAudio:false,externalAudio:null,audioHls:null,audioActive:false,audioSyncTimer:null};
 try{window.PL=PL;}catch(e){} /* جسر: كشف PL على window لإصلاحات المشغّل — لا يغيّر أي منطق */
 const _saved={active:false,url:'',subUrl:'',type:'',epIdx:-1,seriesId:0};
-function setSubtitleFetchContext(title, enabled){
-  PL.subtitleTitle=String(title||'').trim();
-  PL.subtitleFetchEnabled=!!enabled&&!!PL.subtitleTitle;
-  const btn=document.getElementById('subtitleFetchBtn');
-  if(btn)btn.hidden=!PL.subtitleFetchEnabled;
-  if(!PL.subtitleFetchEnabled)closeSubtitleFinder();
-}
 
 /* ════ CAST ════ */
 function castToSmartWvc(){
@@ -1985,7 +2200,7 @@ function openPlayerChannel(ch){
      تلوّث إدخالة الشاشة السابقة (الرئيسية) بـ #ch=..، فيعود التحديث للمشغّل
      بعد الخروج منه. نؤجّلها لتقع على إدخالة المشغّل نفسها. */
   _pendingHash = (ch && ch.id) ? {ch:ch.id} : null;
-  App.currentType='channel';App.currentEpisodeIdx=-1;
+  App.currentType='channel';App.currentEpisodeIdx=-1;PL.episodeId=0;PL.episodeTitle='';
   document.getElementById('pEpNav').style.display='none';
   document.getElementById('epPanelBtn').style.display='none';
   document.getElementById('m3uPanelBtn').style.display='none';
@@ -2006,7 +2221,6 @@ function openPlayerChannel(ch){
   document.getElementById('pChannelName').textContent=ch.name;
   document.getElementById('pFmtTag').textContent=ch.quality||fmt;
   document.getElementById('pTime').textContent=isLive?'بث مباشر':'00:00 / 00:00';
-  setSubtitleFetchContext(ch.name,!isLive);
   const f=detectFmt(ch.stream_url||'');
   if(f==='hls'&&(ch.stream_url||'').toLowerCase().endsWith('.m3u')){
     _openOverlay('',ch.subtitle_url||'');
@@ -2026,6 +2240,7 @@ function openPlayerEpisode(idx){
     ? {s:App.currentSeriesId, e:idx} : null;
   App.currentType='episode';App.currentEpisodeIdx=idx;
   const ep=App.allEpisodes[idx];if(!ep)return;
+  PL.episodeId=Number(ep.id)||0;PL.episodeTitle=String(ep.title||App.currentSeriesName||'');
   PL.backupUrl='';PL.usedBackup=false;PL.audioUrl='';PL.audioDelay=0;PL.serverMuxAudio=false;
   /* مرجع الحلقة للوسيط — كان مفقوداً هنا (موجوداً للقنوات فقط)، فتعذّر
      تحويل حاويات MKV/AVI للحلقات، وهي معظم الأفلام. q:'ep' لأن
@@ -2043,7 +2258,6 @@ function openPlayerEpisode(idx){
   document.getElementById('pChannelName').textContent=App.currentSeriesName;
   document.getElementById('pFmtTag').textContent=fmt;
   document.getElementById('pEpLabel').textContent=ep.title;
-  setSubtitleFetchContext([App.currentSeriesName,ep.title].filter(Boolean).join(' — '),true);
   document.getElementById('pEpNav').style.display='flex';
   document.getElementById('pPrevEp').disabled=(idx===0);
   document.getElementById('pNextEp').disabled=(idx===App.allEpisodes.length-1);
@@ -2735,15 +2949,15 @@ function _startExternalAudio(audioUrl,video){
            المشغّل يأخذ أعلى جودة متاحة ويستهلك كامل سرعة الاتصال. */
 
         // البث عبر Restream يحتاج هامشاً أكبر من المصدر المباشر لتفادي التقطيع.
-        maxBufferLength: PL._hlsLocalStream ? 30 : 15,
-        maxMaxBufferLength: PL._hlsLocalStream ? 60 : 30,
-        maxBufferSize: 40 * 1000 * 1000,
-        backBufferLength: PL._hlsLocalStream ? 30 : 20,
+        maxBufferLength: PL._hlsLocalStream ? 18 : 15,
+        maxMaxBufferLength: PL._hlsLocalStream ? 36 : 30,
+        maxBufferSize: 64 * 1000 * 1000,
+        backBufferLength: PL._hlsLocalStream ? 18 : 20,
         maxBufferHole: 0.8,
 
-        liveSyncDuration: PL._hlsLocalStream ? 8 : 2.5,
-        liveMaxLatencyDuration: PL._hlsLocalStream ? 24 : 12,
-        initialLiveManifestSize: PL._hlsLocalStream ? 3 : 1,
+        liveSyncDuration: PL._hlsLocalStream ? 6 : 2.5,
+        liveMaxLatencyDuration: PL._hlsLocalStream ? 20 : 12,
+        initialLiveManifestSize: PL._hlsLocalStream ? 2 : 1,
         liveDurationInfinity: true,
         maxLiveSyncPlaybackRate: 1.0,     // يمنع تسريع الصوت عند تعافي البث
 
@@ -3372,11 +3586,51 @@ function skip(s){
 function ft(s){const m=Math.floor(s/60),ss=Math.floor(s%60);return String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0');}
 
 /* ════ SUBTITLE TOGGLE ════ */
+async function shsEnableEpisodeSubtitle(video,url){
+  const ep=App.allEpisodes&&App.allEpisodes[App.currentEpisodeIdx];if(ep)ep.subtitle_url=url;
+  PL.subtitleOn=true;await _loadSubtitle(video,url);
+  if(!(video.textTracks&&video.textTracks.length)){PL.subtitleOn=false;toast('تعذّر تحميل الترجمة');return false;}
+  for(let i=0;i<video.textTracks.length;i++)video.textTracks[i].mode='showing';
+  const btn=document.getElementById('subBtn');if(btn){btn.style.opacity='1';btn.style.color='#ff4d57';}
+  toast('✓ الترجمة مفعّلة');return true;
+}
+function shsSubtitleEsc(v){const d=document.createElement('div');d.textContent=String(v||'');return d.innerHTML;}
+function shsOpenSubtitlePicker(episodeId,video){
+  toast('جارٍ جلب قائمة الترجمات…');
+  fetch('api.php?action=subtitle_options&episode_id='+encodeURIComponent(episodeId),{cache:'no-store'}).then(r=>r.json()).then(d=>{
+    const options=(d&&d.success&&Array.isArray(d.options))?d.options:[];
+    if(!options.length){toast('لا تتوفر ترجمة');return;}
+    document.getElementById('shsSubtitlePicker')?.remove();
+    const modal=document.createElement('div');modal.id='shsSubtitlePicker';
+    modal.style.cssText='position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(6px)';
+    modal.innerHTML='<div role="dialog" aria-modal="true" style="width:min(560px,100%);max-height:min(680px,88vh);overflow:auto;background:#16181d;border:1px solid rgba(255,255,255,.15);border-radius:16px;box-shadow:0 24px 80px rgba(0,0,0,.55);padding:18px;color:#fff;direction:rtl"><div style="display:flex;align-items:center;gap:12px;margin-bottom:14px"><b style="font-size:1.06rem;flex:1">اختر الترجمة</b><button type="button" data-close style="border:0;background:#2a2d34;color:#fff;border-radius:8px;width:34px;height:34px;font-size:20px;cursor:pointer">×</button></div><div data-list style="display:grid;gap:8px"></div></div>';
+    modal.querySelector('[data-close]').onclick=()=>modal.remove();modal.onclick=e=>{if(e.target===modal)modal.remove();};
+    const list=modal.querySelector('[data-list]');
+    options.forEach(opt=>{const b=document.createElement('button');b.type='button';b.style.cssText='text-align:right;color:#fff;background:#20232a;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:12px;cursor:pointer;font:inherit';b.innerHTML='<b>'+shsSubtitleEsc(opt.title)+'</b><small style="display:block;color:#b8bfcc;margin-top:5px">'+shsSubtitleEsc(opt.language||'')+' '+shsSubtitleEsc(opt.year||'')+' · '+Number(opt.downloads||0).toLocaleString()+' تحميل</small>';b.onclick=()=>{b.disabled=true;b.style.opacity='.6';b.querySelector('b').textContent='جارٍ تنزيل الترجمة…';fetch('api.php?action=subtitle_download',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'episode_id='+encodeURIComponent(episodeId)+'&file_id='+encodeURIComponent(opt.file_id)}).then(r=>r.json()).then(async x=>{if(!x||!x.success||!x.subtitle_url){toast((x&&x.error)||'تعذّر تنزيل الترجمة');b.disabled=false;b.style.opacity='1';return;}modal.remove();await shsEnableEpisodeSubtitle(video,String(x.subtitle_url));}).catch(()=>{toast('تعذّر تنزيل الترجمة');b.disabled=false;b.style.opacity='1';});};list.appendChild(b);});
+    document.body.appendChild(modal);
+  }).catch(()=>toast('تعذّر جلب قائمة الترجمات'));
+}
 function toggleSubtitle(){
   const v=document.getElementById('html5Player');
   if(!v) return;
   const tracks=v.textTracks;
   if(!tracks||!tracks.length){
+    const episodeId=Number(PL.episodeId||0);
+    if(episodeId>0){
+      if(PL.subtitleLookup){toast('جارٍ تجهيز الترجمة…');return;}
+      PL.subtitleLookup=true;
+      toast('جارٍ جلب الترجمة…');
+      fetch('api.php?action=episode_subtitle&mode=saved&episode_id='+encodeURIComponent(episodeId),{cache:'no-store'})
+        .then(r=>r.json())
+        .then(async d=>{
+          const subUrl=(d&&d.success&&d.subtitle_url)?String(d.subtitle_url):'';
+          if(!subUrl){shsOpenSubtitlePicker(episodeId,v);return;}
+          await shsEnableEpisodeSubtitle(v,subUrl);
+        })
+        .catch(()=>toast('تعذّر جلب الترجمة'))
+        .finally(()=>{PL.subtitleLookup=false;});
+      return;
+    }
     toast('لا تتوفر ترجمة');
     return;
   }
@@ -3392,85 +3646,6 @@ function toggleSubtitle(){
   toast(PL.subtitleOn?'✓ الترجمة مفعّلة':'✕ الترجمة مُوقفة');
 }
 
-
-function closeSubtitleFinder(){
-  const sheet=document.getElementById('subtitleFinder');
-  if(sheet)sheet.hidden=true;
-}
-function openSubtitleFinder(){
-  if(!PL.subtitleFetchEnabled){toast('جلب الترجمة متاح للأفلام والحلقات فقط');return;}
-  const sheet=document.getElementById('subtitleFinder');
-  const title=document.getElementById('subtitleFetchTitle');
-  if(!sheet||!title)return;
-  title.textContent=PL.subtitleTitle;
-  sheet.hidden=false;
-  searchPlayerSubtitles();
-}
-async function subtitleFinderRequest(action,payload){
-  const response=await fetch('subtitle_proxy.php',{
-    method:'POST',credentials:'same-origin',
-    headers:{'Content-Type':'application/json','X-CSRF-Token':window.shashetyCsrf||''},
-    body:JSON.stringify(Object.assign({action:action},payload||{}))
-  });
-  const data=await response.json().catch(()=>({success:false,error:'تعذّر قراءة استجابة الترجمة'}));
-  if(!response.ok||!data.success)throw new Error(data.error||'تعذّر جلب الترجمة');
-  return data;
-}
-function subtitleFinderStatus(message,state){
-  const status=document.getElementById('subtitleFetchStatus');
-  if(!status)return;
-  status.className='p-subtitle-sheet__status'+(state?' is-'+state:'');
-  status.textContent=message||'';
-}
-function clearSubtitleFinderResults(){
-  const results=document.getElementById('subtitleFetchResults');
-  if(results)results.replaceChildren();
-  return results;
-}
-async function searchPlayerSubtitles(){
-  if(!PL.subtitleTitle)return;
-  const language=(document.getElementById('subtitleFetchLanguage')||{}).value||'ar';
-  const results=clearSubtitleFinderResults();
-  subtitleFinderStatus('جارٍ البحث عن الترجمات…','loading');
-  try{
-    const data=await subtitleFinderRequest('search',{title:PL.subtitleTitle,language:language});
-    subtitleFinderStatus(data.items&&data.items.length?'اختر ترجمة مناسبة للفيلم':'لا توجد نتائج مطابقة',data.items&&data.items.length?'success':'empty');
-    (data.items||[]).forEach(function(item){
-      const row=document.createElement('button');
-      row.type='button';row.className='p-subtitle-result';
-      const info=document.createElement('span');info.className='p-subtitle-result__info';
-      const name=document.createElement('strong');name.textContent=item.release||item.title||'ترجمة';
-      const meta=document.createElement('small');meta.textContent=[String(item.language||'').toUpperCase(),item.year||'',item.downloads?item.downloads+' تنزيل':'' ].filter(Boolean).join(' · ');
-      info.append(name,meta);
-      const action=document.createElement('span');action.className='p-subtitle-result__action';action.textContent='إضافة';
-      row.append(info,action);
-      row.addEventListener('click',function(){loadPlayerSubtitle(item.file_id,row);});
-      results.appendChild(row);
-    });
-  }catch(error){
-    subtitleFinderStatus(error.message||'تعذّر البحث عن الترجمة','error');
-  }
-}
-async function loadPlayerSubtitle(fileId,row){
-  if(!fileId)return;
-  if(row){row.disabled=true;row.classList.add('is-loading');}
-  subtitleFinderStatus('جارٍ تجهيز الترجمة…','loading');
-  try{
-    const data=await subtitleFinderRequest('load',{file_id:fileId});
-    const video=document.getElementById('html5Player');
-    if(!video||!data.vtt)throw new Error('تعذّر إضافة الترجمة إلى المشغل');
-    const source=URL.createObjectURL(new Blob([data.vtt],{type:'text/vtt;charset=utf-8'}));
-    _attachTrack(video,source,true);
-    PL.subtitleOn=true;
-    const button=document.getElementById('subBtn');
-    if(button){button.style.opacity='1';button.style.color='#ff4d57';button.classList.add('sub-active');}
-    subtitleFinderStatus('تمت إضافة الترجمة إلى المشغل','success');
-    setTimeout(closeSubtitleFinder,650);
-  }catch(error){
-    if(row){row.disabled=false;row.classList.remove('is-loading');}
-    subtitleFinderStatus(error.message||'تعذّر تحميل الترجمة','error');
-  }
-}
 const ENH_MODES=[
   {cls:'',label:'قياسي',msg:'وضع قياسي'},
   {cls:'enh-deblock',label:'DeBlock',msg:'De-Block — إزالة تشوهات البكسل'},

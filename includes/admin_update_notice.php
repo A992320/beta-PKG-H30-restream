@@ -155,7 +155,7 @@ if (!empty($__adminUpdate['available'])):
         
         <div class="pro-update-actions">
             <form method="post" action="admin.php" style="margin:0; display:inline-block;">
-                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8') ?>">
                 <input type="hidden" name="admin_update_notice_action" value="change_channel">
                 <select name="new_channel" onchange="this.form.submit()" style="background: rgba(255,255,255,0.05); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 5px 10px; font-size: 0.75rem; font-weight: bold; cursor: pointer; outline: none; margin-left: 5px;">
                     <option value="stable" style="background:#0f172a; color:#fff;" <?= $uChannel === 'stable' ? 'selected' : '' ?>>القناة: مستقرة (Stable)</option>
@@ -169,7 +169,7 @@ if (!empty($__adminUpdate['available'])):
                 <i class="fas fa-bolt"></i> تحديث مباشر
             </button>
             <form method="post" action="admin.php" style="margin:0" onsubmit="return confirm('هل أنت متأكد من تجاهل هذا الإصدار (v<?= $uRemote ?>)؟')">
-                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8') ?>">
                 <input type="hidden" name="admin_update_notice_action" value="dismiss">
                 <input type="hidden" name="remote_version" value="<?= $uRemote ?>">
                 <button type="submit" class="pro-btn pro-btn-dismiss">تجاوز</button>
@@ -218,7 +218,7 @@ function startAjaxUpdate() {
 
     // إرسال الطلب في الخلفية لصفحة التحديث
     var fd = new FormData();
-    fd.append('csrf_token', '<?= htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8') ?>');
+    fd.append('csrf_token', '<?= htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8') ?>');
     fd.append('do_update', '1');
     fd.append('channel', '<?= $uChannel ?>');
 
@@ -347,7 +347,7 @@ function checkForUpdatesAjax() {
     if(icon) icon.classList.add('fa-spin');
     
     var fd = new FormData();
-    fd.append('csrf_token', '<?= htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8') ?>');
+    fd.append('csrf_token', '<?= htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8') ?>');
     fd.append('admin_update_notice_action', 'check_updates');
 
     fetch('admin.php', {

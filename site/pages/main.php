@@ -9,6 +9,12 @@
     <?php endif; ?>
     <span class="nav-logo-text"><?php echo htmlspecialchars($site_name); ?></span>
   </div>
+  <!-- اختيار المحتوى بأسلوب Netflix: يبنى لاحقاً من بيانات الصفحة الرئيسية فقط. -->
+  <nav id="shsNetflixTopTabs" class="shs-netflix-top-tabs" role="tablist" aria-label="أقسام المحتوى" hidden></nav>
+  <div id="shsNetflixRailControls" class="shs-nx-scroll-controls" aria-label="التنقل بين الأقسام" hidden>
+    <button type="button" class="shs-nx-scroll-btn" data-shs-scroll="previous" title="السابق" aria-label="الأقسام السابقة">‹</button>
+    <button type="button" class="shs-nx-scroll-btn" data-shs-scroll="next" title="التالي" aria-label="الأقسام التالية">›</button>
+  </div>
   <div class="nav-center">
     <?php if(!$hide_search): ?>
     <div class="search-wrap">
@@ -23,6 +29,9 @@
     <?php endif; ?>
   </div>
   <div class="nav-actions">
+    <button class="nav-btn shs-top-home" type="button" title="الرئيسية" aria-label="الرئيسية" onclick="location.href='index.php'">
+      <span class="lcn"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+    </button>
     <details class="site-language-menu">
       <summary aria-label="تغيير اللغة" title="تغيير اللغة">
         <span class="lcn" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" x2="22" y1="12" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
@@ -92,7 +101,8 @@
 
 <!-- MAIN -->
 <main style="padding-top:88px;padding-bottom:60px" id="mainContent">
-  <div class="hero-welcome" id="heroWelcome">
+  <?php /* يخفي البانر الاحتياطي أيضاً، فلا تبقى بطاقة ظاهرة بعد تعطيل البطاقة الرئيسية. */ ?>
+  <div class="hero-welcome" id="heroWelcome"<?php if (!empty($hide_hero)): ?> style="display:none!important" aria-hidden="true"<?php endif; ?>>
     <h1><?php echo htmlspecialchars($welcome_title); ?></h1>
     <p><?php echo htmlspecialchars($welcome_subtitle); ?></p>
   </div>
@@ -288,8 +298,7 @@
     <div class="p-tools">
       <!-- اليمين: ترجمة + تحسين + قوائم (p-tools-l أول في DOM = يمين في RTL) -->
       <div class="p-tools-l">
-        <button type="button" class="p-btn" onclick="toggleSubtitle()" id="subBtn" title="إظهار الترجمة"><span class="lcn"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="14" x="3" y="5" rx="2"/><path d="M7 15h4m4 0h2M7 11h2m4 0h4"/></svg></span></button>
-        <button type="button" class="p-btn p-sub-fetch-btn" id="subtitleFetchBtn" onclick="openSubtitleFinder()" hidden aria-label="جلب ترجمة" title="جلب ترجمة"><span class="lcn"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 11h2m4 0h4M7 15h4"/><circle cx="18" cy="6" r="3"/><path d="m20.2 8.2 1.8 1.8"/></svg></span></button>
+        <button type="button" class="p-btn" onclick="toggleSubtitle()" id="subBtn"><span class="lcn"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="14" x="3" y="5" rx="2" ry="2"/><path d="M7 15h4m4 0h2M7 11h2m4 0h4"/></svg></span></button>
         <button type="button" class="p-btn p-enh" onclick="toggleEnhancements()" id="enhanceBtn">
           <span class="lcn"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></svg></span><span id="enhLabel" class="p-enh-lbl">HD</span>
         </button>
@@ -316,27 +325,6 @@
       </div>
     </div>
   </div>
-  <section class="p-subtitle-sheet" id="subtitleFinder" hidden aria-labelledby="subtitleFinderTitle" role="dialog" aria-modal="true">
-    <div class="p-subtitle-sheet__head">
-      <div>
-        <span class="p-subtitle-sheet__eyebrow">OpenSubtitles</span>
-        <h2 id="subtitleFinderTitle">جلب ترجمة</h2>
-        <p id="subtitleFetchTitle">—</p>
-      </div>
-      <button type="button" class="p-subtitle-sheet__close" onclick="closeSubtitleFinder()" aria-label="إغلاق"><span class="lcn"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span></button>
-    </div>
-    <div class="p-subtitle-sheet__filters">
-      <label for="subtitleFetchLanguage">اللغة</label>
-      <select id="subtitleFetchLanguage" onchange="searchPlayerSubtitles()">
-        <option value="ar">العربية</option>
-        <option value="en">English</option>
-        <option value="tr">Türkçe</option>
-      </select>
-      <button type="button" onclick="searchPlayerSubtitles()"><span class="lcn"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span> بحث</button>
-    </div>
-    <div id="subtitleFetchStatus" class="p-subtitle-sheet__status" role="status"></div>
-    <div id="subtitleFetchResults" class="p-subtitle-sheet__results"></div>
-  </section>
 </div>
 
 <!-- SCREENSAVER -->

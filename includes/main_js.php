@@ -50,6 +50,22 @@ function toggleDayNight(){
 })();
 function api(data){const fd=new FormData();for(const[k,v]of Object.entries(data))fd.append(k,String(v??''));if(window.csrfToken)fd.append('csrf_token',window.csrfToken);return fetch(location.href,{method:'POST',body:fd}).then(r=>r.json()).catch(()=>({success:false,error:'خطأ في الاتصال'}));}
 
+function deleteCategory(id, button){
+  if(!confirm('هل أنت متأكد من حذف هذا القسم؟')) return;
+  if(button) button.disabled=true;
+  api({ajax_action:'delete_category',id:id}).then(d=>{
+    if(d.success){
+      if(window.toast) toast(d.message||'تم حذف القسم بنجاح','s');
+      setTimeout(()=>location.reload(),350);
+      return;
+    }
+    if(button) button.disabled=false;
+    if(window.toast) toast(d.error||'تعذر حذف القسم','e'); else alert(d.error||'تعذر حذف القسم');
+  }).catch(()=>{
+    if(button) button.disabled=false;
+    if(window.toast) toast('تعذر الاتصال بالخادم','e'); else alert('تعذر الاتصال بالخادم');
+  });
+}
 /* ════════════════════════════════════════════════════════════════════
    ⚡ مُسرّع الطلبات + تحسين تجربة المستخدم  (إضافة — لا يُحذف شيء أصلي)
    - كاش ذكي للطلبات القرائية (load/list/get/fetch/status)
@@ -524,23 +540,7 @@ function chRender(page){
         let subHtml = ch.subtitle_url ? `<span class="bdg bg"><i class="fas fa-closed-captioning"></i> نعم</span>` : `<span style="color:var(--t3);font-size:.75rem">—</span>`;
         let activeChecked = parseInt(ch.is_active) === 1 ? 'checked' : '';
         let quality = ch.quality || 'HD 720';
-        let views = ch.views_count || 0;
-        
-        let editData = JSON.stringify({
-            id: ch.id,
-            category_id: ch.category_id,
-            name: ch.name,
-            stream_url: ch.stream_url,
-            audio_url: ch.audio_url || '',
-            audio_delay: Number(ch.audio_delay || 0),
-            logo_icon: ch.logo_icon,
-            logo_url: ch.logo_url,
-            backup_url: ch.backup_url || '',
-            quality: quality,
-            is_active: parseInt(ch.is_active || 1)
-        }).replace(/"/g, '&quot;');
-        
-        html += `<tr>
+        let views = ch.views_count || 0;html += `<tr>
             <td><input type="checkbox" class="chSelChk" value="${ch.id}" onchange="chSelCtrl()" style="width:16px;height:16px;cursor:pointer;accent-color:var(--red)"></td>
             <td style="color:var(--t3);font-size:.75rem">#${ch.id}</td>
             <td><div class="cn">${logoHtml}<strong style="color:var(--t1)">${ch.name}</strong></div></td>
@@ -553,7 +553,7 @@ function chRender(page){
             <td>
                 <div class="acts">
                     <button class="ib pl" onclick="testChannel('${escQ(ch.stream_url)}','${escQ(ch.name)}','${escQ(ch.subtitle_url)}','${escQ(ch.backup_url)}')"><i class="fas fa-play"></i></button>
-                    <button class="ib ed" onclick="editCh(${editData})"><i class="fas fa-pen"></i></button>
+                    <button class="ib ed" onclick="editChannelById(${ch.id})"><i class="fas fa-pen"></i></button>
                     <button class="ib dl" onclick="postDelete('delete_channel', ${ch.id})"><i class="fas fa-trash"></i></button>
                 </div>
             </td>
@@ -609,11 +609,7 @@ function saveApiSettings(){
     const os_user  = $('api_os_user').value.trim();
     const os_pass  = $('api_os_pass').value.trim();
     const os_key   = $('api_os_key').value.trim();
-    const omdbInput = $('api_omdb_key');
-    const omdb_key = typeof normalizeOmdbKey === 'function'
-        ? normalizeOmdbKey(omdbInput.value)
-        : omdbInput.value.trim();
-    if (omdb_key) omdbInput.value = omdb_key;
+    const omdb_key = $('api_omdb_key').value.trim();
     
     al('apiSaveAlert', '<span class="sp"></span> جاري حفظ الإعدادات...', 'i');
     
@@ -646,13 +642,7 @@ let _tmdbTimer={};
 const SERVER_TMDB_KEY = "<?php echo addslashes($settings['tmdb_api_key'] ?? ''); ?>";
 function getTmdbKey(){ return SERVER_TMDB_KEY; }
 const SERVER_OMDB_KEY = "<?php echo addslashes($settings['omdb_api_key'] ?? ''); ?>";
-function getOmdbKey(){
-    const raw = String(SERVER_OMDB_KEY || '').trim();
-    if (typeof normalizeOmdbKey === 'function') return normalizeOmdbKey(raw);
-    const match = raw.match(/(?:^|[?&])apikey=([^&#\s]+)/i);
-    if (!match || !match[1]) return raw;
-    try { return decodeURIComponent(match[1]).trim(); } catch (e) { return match[1].trim(); }
-}
+function getOmdbKey(){ return SERVER_OMDB_KEY; }
 let _currentSource = { add: 'tmdb', edit: 'tmdb' };
 let _mediaSearchTimer = {};
 
@@ -1108,7 +1098,27 @@ function closePlayer() {
 }
 
 function editCat(d){$('eCatId').value=d.id;$('eCatName').value=d.name;$('eCatIcon').value=d.icon||'fas fa-th-large';const sel=$('eCatParent');for(let o of sel.options)o.selected=(o.value===(d.parent_id||'').toString());OM('editCatM');}
-function editCh(d){$('eChId').value=d.id;$('eChName').value=d.name;$('eChUrl').value=d.stream_url;$('eChAudioUrl').value=d.audio_url||'';$('eChAudioDelay').value=Number(d.audio_delay||0);$('eChBackup').value=d.backup_url||'';$('eChQuality').value=d.quality||'HD 720';$('eChActive').checked=(parseInt(d.is_active)!==0);$('eChIcon').value=d.logo_icon||'fas fa-tv';$('eChLogo').value=d.logo_url||'';const sel=$('eChCat');for(let o of sel.options)o.selected=(o.value===d.category_id.toString());if(d.logo_url)previewImage('editPrev',d.logo_url);else $('editPrev').style.display='none';OM('editChM');}
+function editChannelById(id){
+  const channel = _allChannels.find(item => String(item.id) === String(id));
+  if(!channel){
+    if(window.toast) toast('تعذر العثور على بيانات القناة، حدّث القائمة ثم أعد المحاولة','e');
+    return;
+  }
+  editCh(channel);
+}
+function editCh(d){
+  if(!d) return;
+  const put=(id,value)=>{ const field=$(id); if(field) field.value=value ?? ''; };
+  put('eChId',d.id); put('eChName',d.name); put('eChUrl',d.stream_url);
+  put('eChAudioUrl',d.audio_url||''); put('eChAudioDelay',Number(d.audio_delay||0));
+  put('eChBackup',d.backup_url||''); put('eChQuality',d.quality||'HD 720');
+  put('eChIcon',d.logo_icon||'fas fa-tv'); put('eChLogo',d.logo_url||'');
+  const active=$('eChActive'); if(active) active.checked=(parseInt(d.is_active)!==0);
+  const sel=$('eChCat'); if(sel) for(const option of sel.options) option.selected=(String(option.value)===String(d.category_id));
+  const preview=$('editPrev');
+  if(d.logo_url) previewImage('editPrev',d.logo_url); else if(preview) preview.style.display='none';
+  OM('editChM');
+}
 function toggleChannelActive(checkbox){
   const chid = checkbox.getAttribute('data-ch-id');
   const newState = checkbox.checked ? '1' : '0';
@@ -2380,20 +2390,9 @@ function vidUpload(inp){const f=inp.files[0];if(!f)return;const fd=new FormData(
 function vidDebug(){api({ajax_action:'debug_upload'}).then(d=>{const dbg=$('v1debug');dbg.style.display='block';if(d.success){const ok='✅',no='❌';dbg.innerHTML=`<strong>إعدادات PHP:</strong><br>upload_max_filesize: <b>${d.upload_max_filesize}</b><br>post_max_size: <b>${d.post_max_size}</b><br>مجلد الرفع: <b>${d.upload_dir}</b><br>المجلد موجود: ${d.dir_exists?ok:no}<br>قابل للكتابة: ${d.dir_writable?ok:no}<br>PHP: ${d.php_version}<br><br><small style="color:var(--t3)">إذا كانت القيم 8M أو أقل، أضف للـ .htaccess:<br>php_value upload_max_filesize 2048M<br>php_value post_max_size 2048M</small>`;}else dbg.innerHTML='خطأ: '+d.error;});}
 function vidReset(){VID={file:null,filename:'',url:'',subFile:'',subUrl:'',subVttUrl:'',opt:'none'};$('vidChip').style.display='none';$('vidFileIn').value='';$('vNext1').disabled=true;al('v1alert','','');}
 function vidGo(step){if(step===3){$('mSumV').textContent=VID.filename||'—';$('mSumS').textContent=VID.subFile?(VID.subFile+' ✅'):'بدون ترجمة';}document.querySelectorAll('.vp').forEach(p=>p.classList.remove('act'));document.querySelectorAll('.vs').forEach(v=>v.classList.remove('act'));$('vp'+step).classList.add('act');$('vs'+step).classList.add('act');for(let i=1;i<step;i++)$('vs'+i).classList.add('done');}
-function vidSubOpt(opt){VID.opt=opt;document.querySelectorAll('.so').forEach(s=>s.classList.remove('sel'));$('so-'+opt).classList.add('sel');$('osCard').style.display=opt==='search'?'block':'none';$('subUpCard').style.display=opt==='upload'?'block':'none';if(opt==='search')syncOpenSubtitlesSession();}
+function vidSubOpt(opt){VID.opt=opt;document.querySelectorAll('.so').forEach(s=>s.classList.remove('sel'));$('so-'+opt).classList.add('sel');$('osCard').style.display=opt==='search'?'block':'none';$('subUpCard').style.display=opt==='upload'?'block':'none';}
 function subFileUpload(inp){const f=inp.files[0];if(!f)return;const fd=new FormData();if(window.csrfToken)fd.append('csrf_token',window.csrfToken);fd.append('ajax_action','upload_subtitle_file');fd.append('subtitle',f);al('subAl','<span class="sp"></span> جارٍ الرفع…','i');fetch(location.href,{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.success){VID.subFile=d.filename;VID.subUrl=d.url;$('upSubChip').style.display='flex';$('upSubName').textContent=f.name;al('subAl','<?= addslashes($t["js_bcebd8697a"] ?? "✅ تم") ?>','s');}else al('subAl',d.error||'<?= addslashes($t["js_dc5b8b3a79"] ?? "خطأ") ?>','e');});}
 
-function syncOpenSubtitlesSession(){
-    const offline=$('osNL'),online=$('osL');
-    if(!offline||!online)return;
-    api({ajax_action:'os_status'}).then(d=>{
-        if(!d.success||!d.logged_in)return;
-        offline.style.display='none';
-        online.style.display='flex';
-        const user=$('osLUser');
-        if(user)user.textContent=d.username||'';
-    });
-}
 function osLogin(){
     const u=$('osU').value.trim(),p=$('osP').value.trim(),k=$('osApiKey').value.trim();
     if(!u||!p){al('osLAlert','<?= addslashes($t["js_c2be271a9b"] ?? "أدخل اسم المستخدم وكلمة المرور") ?>','e');return;}
@@ -2405,11 +2404,6 @@ function osLogin(){
             $('osNL').style.display='none';$('osL').style.display='flex';$('osLUser').textContent=d.username;
         }else al('osLAlert',d.error||'<?= addslashes($t["js_dc5b8b3a79"] ?? "خطأ") ?>','e');
     });
-}
-if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',syncOpenSubtitlesSession,{once:true});
-}else{
-    setTimeout(syncOpenSubtitlesSession,0);
 }
 function osLogout(){
     api({ajax_action:'os_logout'}).then(()=>{

@@ -210,6 +210,30 @@ if (isset($_POST['ajax_action'])) {
      * @param string    $msg رسالة عربية واضحة للمستخدم.
      * @param Throwable $e   الاستثناء الأصلي (للسجل فقط).
      */
+    // حذف قسم من لوحة الإدارة: لا يُحذف إن كانت هناك قنوات مرتبطة به.
+    if($act === 'delete_category'){
+        $id = (int)($_POST['id'] ?? 0);
+        if($id <= 0) jErr('معرّف القسم غير صالح');
+        try {
+            $exists = $pdo->prepare("SELECT id FROM categories WHERE id=?");
+            $exists->execute([$id]);
+            if(!$exists->fetchColumn()) jErr('القسم غير موجود أو تم حذفه مسبقاً');
+            $channels = $pdo->prepare("SELECT COUNT(*) FROM channels WHERE category_id=?");
+            $channels->execute([$id]);
+            $channelsCount = (int)$channels->fetchColumn();
+            if($channelsCount > 0) jErr('لا يمكن حذف القسم لأنه يحتوي على '.$channelsCount.' قناة. انقل القنوات أو احذفها أولاً.');
+            $pdo->beginTransaction();
+            $pdo->prepare("UPDATE categories SET parent_id=NULL WHERE parent_id=?")->execute([$id]);
+            $deleted = $pdo->prepare("DELETE FROM categories WHERE id=?");
+            $deleted->execute([$id]);
+            if($deleted->rowCount() !== 1) throw new RuntimeException('لم يتغير أي سجل');
+            $pdo->commit();
+            jOk(['id'=>$id, 'message'=>'تم حذف القسم بنجاح']);
+        } catch(Throwable $e) {
+            if($pdo->inTransaction()) $pdo->rollBack();
+            jErr('تعذر حذف القسم: '.$e->getMessage());
+        }
+    }
     function jErrLog($msg, $e = null){
         if($e instanceof Throwable){
             error_log('shashety-ajax [' . ($_POST['ajax_action'] ?? '?') . ']: ' . $e->getMessage());
@@ -1997,17 +2021,41 @@ if (isset($_POST['ajax_action'])) {
     }
 
     // ══ معالجات إدارة المستخدمين ══
+    // يُنشأ الجدول عند الطلب أيضاً لأن بعض التحديثات القديمة كانت تترك علامة التهيئة دون جدول السجل.
+    $ensureLoginLogs = static function (PDO $pdo): array {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS `login_logs` (
+            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            `ip_address` VARCHAR(45) NOT NULL,
+            `username` VARCHAR(100) NULL,
+            `status` VARCHAR(50) NOT NULL DEFAULT 'failed',
+            `attempt_time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            KEY `idx_login_logs_ip_time` (`ip_address`, `attempt_time`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        $columns = $pdo->query("SHOW COLUMNS FROM `login_logs`")->fetchAll(PDO::FETCH_COLUMN);
+        return array_fill_keys($columns ?: [], true);
+    };
     if($act==='clear_login_logs'){
         global $pdo;
         if(!in_array($_SESSION['admin_role'] ?? 'normal', ['administrator','super'])) jErr('ليس لديك صلاحية');
-        try { $pdo->exec("TRUNCATE TABLE login_logs"); } catch(Exception $e) { jErr('فشل الحذف'); }
+        try { $ensureLoginLogs($pdo); $pdo->exec("DELETE FROM `login_logs`"); } catch(Throwable $e) { jErr('فشل الحذف'); }
         jOk();
     }
     if($act==='get_login_logs'){
         global $pdo;
         $myRole = $_SESSION['admin_role'] ?? 'normal';
         if(!in_array($myRole, ['administrator','super'])) jErr('ليس لديك صلاحية');
-        $rows = $pdo->query("SELECT id, ip_address, username, status, attempt_time FROM login_logs ORDER BY id DESC LIMIT 100")->fetchAll(PDO::FETCH_ASSOC);
+        try {
+            $columns = $ensureLoginLogs($pdo);
+            $ipField = isset($columns['ip_address']) ? '`ip_address`' : (isset($columns['ip']) ? '`ip`' : "''");
+            $userField = isset($columns['username']) ? '`username`' : "''";
+            $statusField = isset($columns['status']) ? '`status`' : "''";
+            $timeField = isset($columns['attempt_time']) ? '`attempt_time`' : (isset($columns['created_at']) ? '`created_at`' : 'NOW()');
+            $rows = $pdo->query("SELECT `id`, {$ipField} AS ip_address, {$userField} AS username, {$statusField} AS status, {$timeField} AS attempt_time FROM `login_logs` ORDER BY `id` DESC LIMIT 100")->fetchAll(PDO::FETCH_ASSOC);
+        } catch(Throwable $e) {
+            if(function_exists('logTo')) logTo('error', 'تعذر تحميل سجل الدخول: '.$e->getMessage());
+            jErr('تعذر تحميل سجل الدخول');
+        }
         jOk(['logs' => $rows]);
     }
     if($act==='get_admin_users'){
@@ -2625,6 +2673,7 @@ if (isset($_POST['ajax_action'])) {
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_MAXREDIRS => 3,
             CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+            CURLOPT_ENCODING => '', // قبول ضغط gzip/br؛ قوائم Xtream الكبيرة تصل أسرع بكثير
             CURLOPT_TIMEOUT => 45,
             CURLOPT_CONNECTTIMEOUT => 15,
             CURLOPT_SSL_VERIFYPEER => $verify,
@@ -2688,6 +2737,8 @@ if (isset($_POST['ajax_action'])) {
         xtreamEnsureTables($pdo);
         @set_time_limit(0);
         @ignore_user_abort(true);
+        // لا نحتجز جلسة المدير أثناء الاستيراد الطويل، وإلا تتوقف طلبات التقدم خلفه.
+        if(session_status() === PHP_SESSION_ACTIVE) @session_write_close();
         xtreamAbortClear(); // امسح أي إشارة إيقاف قديمة قبل بدء استيراد جديد
         $host = xtreamNormalizeHost($_POST['host'] ?? '');
         $user = trim($_POST['username'] ?? '');
@@ -2811,22 +2862,25 @@ if (isset($_POST['ajax_action'])) {
                 }
                 xtreamProgWrite(['stage'=>'vod','label'=>'جارٍ جلب قائمة الأفلام...','done'=>0,'total'=>0,
                                  'live'=>$liveN,'vod'=>$vodN,'series'=>$serN,'skipped'=>$skipN,'started'=>$startedAt]);
-                $streams = xtreamApi($host,$user,$pass,'get_vod_streams');
-                if(is_array($streams) && !isset($streams['_error'])){
-                    $insMov = $pdo->prepare("INSERT INTO series (category_id, name, slug, description, poster_url, logo_icon, xtream_account_id, is_active) VALUES (?,?,?,?,?,?,?,1)");
-                    $insMovEp = $pdo->prepare("INSERT INTO episodes (series_id, episode_number, title, stream_url, description, display_order) VALUES (?,?,?,?,?,?)");
-                    $i = 0;
-                    $totVod = count($streams);
+                if(!$catMap) throw new RuntimeException('لم يُرجع مزود Xtream أي فئات للأفلام');
+                $insMov = $pdo->prepare("INSERT INTO series (category_id, name, slug, description, poster_url, logo_icon, xtream_account_id, is_active) VALUES (?,?,?,?,?,?,?,1)");
+                $insMovEp = $pdo->prepare("INSERT INTO episodes (series_id, episode_number, title, stream_url, description, display_order) VALUES (?,?,?,?,?,?)");
+                $catTotal = count($catMap); $catDone = 0; $catOk = 0; $lastVodError = ''; $seenVod = [];
+                foreach($catMap as $remoteCatId => $remoteCatName){
+                    if(xtreamAborted()) throw new XtreamAbort('vod');
+                    xtreamProgWrite(['stage'=>'vod','label'=>'جارٍ جلب فئة أفلام: '.xtreamFit($remoteCatName,80),'done'=>$catDone,'total'=>$catTotal,
+                                     'live'=>$liveN,'vod'=>$vodN,'series'=>$serN,'skipped'=>$skipN,'started'=>$startedAt]);
+                    $streams = xtreamApi($host,$user,$pass,'get_vod_streams',['category_id'=>$remoteCatId]);
+                    $catDone++;
+                    if(!is_array($streams) || isset($streams['_error'])){ $lastVodError=is_array($streams)?($streams['_error']??'رد غير صالح'):'رد غير صالح'; continue; }
+                    $catOk++;
                     foreach($streams as $s){
-                        if((++$i % 25) === 0 && xtreamAborted()) throw new XtreamAbort('vod');
-                        if(($i % 20) === 0 || $i === $totVod){
-                            xtreamProgWrite(['stage'=>'vod','label'=>'استيراد الأفلام إلى شاشتي','done'=>$i,'total'=>$totVod,
-                                             'live'=>$liveN,'vod'=>$vodN,'series'=>$serN,'skipped'=>$skipN,'started'=>$startedAt]);
-                        }
-                        $sid = $s['stream_id'] ?? null; if($sid === null) continue;
-                        $cid = $s['category_id'] ?? '';
-                        $cName = $catMap[$cid] ?? 'أفلام Xtream';
-                        $catId = $getCat('🎬 '.$cName, 'fas fa-film');
+                        if(xtreamAborted()) throw new XtreamAbort('vod');
+                        $sid = $s['stream_id'] ?? null; if($sid === null || isset($seenVod[(string)$sid])) continue;
+                        // حماية إن كان المزود يتجاهل category_id ويعيد القائمة كاملة.
+                        if(isset($s['category_id']) && (string)$s['category_id'] !== (string)$remoteCatId) continue;
+                        $seenVod[(string)$sid] = true;
+                        $catId = $getCat('🎬 '.$remoteCatName, 'fas fa-film');
                         $vext = $s['container_extension'] ?? 'mp4';
                         $url  = xtreamStreamUrl($host,$user,$pass,'movie',$sid,$vext);
                         $mName = htmlspecialchars(strip_tags($s['name'] ?? 'فيلم'));
@@ -2834,28 +2888,16 @@ if (isset($_POST['ajax_action'])) {
                         $mPoster = $s['stream_icon'] ?? ($s['cover'] ?? ($s['movie_image'] ?? ''));
                         $mPlot   = $s['plot'] ?? ($s['description'] ?? '');
                         try {
-                            // 1) الفيلم كعنصر في شاشتي
-                            $insMov->execute([
-                                $catId,
-                                xtreamFit($mName, 450),
-                                xtreamFit($mSlug, 200),
-                                xtreamFit(strip_tags((string)$mPlot), 5000),
-                                xtreamFit($mPoster, 2000),
-                                'fas fa-film',
-                                $accId
-                            ]);
+                            $insMov->execute([$catId,xtreamFit($mName,450),xtreamFit($mSlug,200),xtreamFit(strip_tags((string)$mPlot),5000),xtreamFit($mPoster,2000),'fas fa-film',$accId]);
                             $movId = (int)$pdo->lastInsertId();
-                            // 2) حلقة وحيدة تحمل ملف الفيديو
-                            $insMovEp->execute([
-                                $movId, 1,
-                                xtreamFit($mName, 450),
-                                xtreamFit($url, 2000),
-                                '', 0
-                            ]);
+                            $insMovEp->execute([$movId,1,xtreamFit($mName,450),xtreamFit($url,2000),'',0]);
                             $vodN++;
                         } catch(PDOException $e){ $skipN++; }
                     }
+                    xtreamProgWrite(['stage'=>'vod','label'=>'اكتملت فئة أفلام: '.xtreamFit($remoteCatName,80),'done'=>$catDone,'total'=>$catTotal,
+                                     'live'=>$liveN,'vod'=>$vodN,'series'=>$serN,'skipped'=>$skipN,'started'=>$startedAt]);
                 }
+                if($catOk === 0) throw new RuntimeException('تعذر جلب أفلام Xtream: '.($lastVodError ?: 'لم يستجب السيرفر'));
             }
 
             // ═══ المسلسلات (series + episodes) ═══

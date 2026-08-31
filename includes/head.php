@@ -24,7 +24,7 @@ if(!is_array($t)) $t = [];
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/vendor/fontawesome/css/all.min.css">
 <script>
-    window.csrfToken = "<?= htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8') ?>";
+    window.csrfToken = "<?= htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8') ?>";
     window.lang = <?= json_encode([
         'actual_cpu_usage'       => $t['actual_cpu_usage'] ?? 'استهلاك المعالج الفعلي',
         'used'                   => $t['used'] ?? 'مستخدم: ',
