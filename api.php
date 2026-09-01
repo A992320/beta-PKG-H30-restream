@@ -1176,6 +1176,11 @@ function getEpisodes()
             return;
         }
 
+        /* تستخدم الواجهة fresh=1 مرة واحدة فقط عند ظهور مجلد فارغ في
+           Android TV. هذا يتجاوز ذاكرة التخزين المؤقت للطلب ويقرأ
+           الحلقات المكتملة من قاعدة البيانات مباشرة. */
+        $forceFresh = isset($_GET['fresh']) && $_GET['fresh'] === '1';
+
         /* ⚠️ عطل «أفتح البوستر فلا يظهر محتوى، وبعد تحديث الصفحة يظهر»:
            كانت نتيجة «المسلسل غير موجود» (false) تُخزَّن في الكاش
            لمدة 120 ثانية مثل أي نتيجة ناجحة. فإذا صادف الطلب لحظةً
@@ -1186,7 +1191,7 @@ function getEpisodes()
            وأن إعادة التحميل بعد قليل «تُصلحها».
            الحل: لا نخزّن النتائج السلبية إلا لثوانٍ قليلة جداً. */
         $cacheKey = "eps:{$series_id}:" . apiContentStamp();
-        $payload  = cacheGet($cacheKey);
+        $payload  = $forceFresh ? null : cacheGet($cacheKey);
 
         if ($payload === null) {
             $payload = (static function () use ($series_id) {

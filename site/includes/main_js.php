@@ -323,6 +323,29 @@ const _UA=(function(){
 })();
 var _isTV=_UA.isTV, _isIOS=_UA.isIOS, _isAndroid=_UA.isAndroid, _isWindows=_UA.isWindows;
 
+/* توافق الهاتف: ارتفاع فعلي مع شريط Safari/Chrome ودوران الشاشة. */
+try{
+  const shsRoot=document.documentElement;
+  shsRoot.classList.toggle('shs-mobile',_UA.isMobile);
+  shsRoot.classList.toggle('shs-ios',_UA.isIOS);
+  shsRoot.classList.toggle('shs-android-mobile',_UA.isAndroidMobile);
+}catch(e){}
+function shsSyncMobileViewport(){
+  if(!_UA.isMobile)return;
+  const viewport=window.visualViewport;
+  const height=Math.round((viewport&&viewport.height)||window.innerHeight);
+  document.documentElement.style.setProperty('--shs-mobile-vh',(height/100)+'px');
+  const player=document.getElementById('playerOverlay');
+  if(player&&player.classList.contains('active'))player.style.height=height+'px';
+}
+if(_UA.isMobile){
+  const updateMobileViewport=()=>requestAnimationFrame(shsSyncMobileViewport);
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',updateMobileViewport,{once:true});else updateMobileViewport();
+  window.addEventListener('resize',updateMobileViewport,{passive:true});
+  window.addEventListener('orientationchange',()=>setTimeout(updateMobileViewport,120),{passive:true});
+  if(window.visualViewport)window.visualViewport.addEventListener('resize',updateMobileViewport,{passive:true});
+}
+
 /* ════ DEVTOOLS PROTECTION ════ */
 <?php if ($gs_block_devtools): ?>
 (function(){
@@ -648,6 +671,24 @@ function shsBuildSeparatedHomeGroups(wrap){
 window.shsSelectHomeGroup=function(key, initial){
   const state=App.homeContentGroups;
   if(!state || !state.groups[key] || !state.available.includes(key)) return;
+  /* الشريط العلوي هو تنقّل مباشر، لا تغيير مخفي للمحتوى خلف الصفحة الحالية.
+     لذلك إذا كان المستخدم داخل مسلسل أو قسم أو نتيجة بحث نغلق الشاشة
+     المفتوحة أولاً ونُظهر المجموعة المطلوبة فور الضغط على OK أو بالنقرة. */
+  if(!initial){
+    try{ if(window.__shsCatAbort)window.__shsCatAbort.abort(); }catch(e){}
+    App.currentCategoryView=null;
+    App.currentSeriesId=null;App.currentSeriesName='';App.currentSeriesPoster='';
+    ['categoryViewSection','epSection','searchViewSection'].forEach(function(id){
+      var el=document.getElementById(id);if(el)el.classList.add('hidden');
+    });
+    var home=document.getElementById('netflixStyleSliders');
+    var hero=document.getElementById('heroWelcome');
+    if(home)home.classList.remove('hidden');
+    if(hero)hero.classList.remove('hidden');
+    var search=document.getElementById('searchInput');
+    if(search)search.value='';
+    try{ shsToggleClearBtn();setActiveCatNavBtn(null);shsSetHash(null); }catch(e){}
+  }
   App.activeHomeGroup=key;
   if(!initial) shsSaveHomeGroup(key);
   if(_homeRowsObserver){ _homeRowsObserver.disconnect(); _homeRowsObserver=null; }
@@ -671,8 +712,13 @@ window.shsSelectHomeGroup=function(key, initial){
       if(cat && typeof openCategoryView==='function') openCategoryView(id,cat.name||'القسم');
     }));
     tabs.querySelector('[data-shs-show-categories]')?.addEventListener('click',()=>{
-      const first=tabs.querySelector('[data-home-category]');
-      if(first) first.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+      /* زر «كل الأقسام» يجب أن يفتح القائمة فعلياً، لا أن يمرّر الشريط
+         فقط؛ هذا يجعل زر OK في Android TV مفيداً وواضحاً. */
+      if(typeof shsOpenCatMenu==='function')shsOpenCatMenu();
+      else{
+        const first=tabs.querySelector('[data-home-category]');
+        if(first) first.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+      }
     });
     railControls?.querySelectorAll('[data-shs-scroll]').forEach(btn=>btn.onclick=()=>{
       const step=Math.max(220,Math.round(tabs.clientWidth*.58));
@@ -762,9 +808,12 @@ async function loadAndBuildNetflixHome(){
 
     const syncDelay=window.requestIdleCallback||(fn=>setTimeout(fn,4000));
     syncDelay(()=>syncNotifications(App.cats));
-    // الصفوف المميزة ثانوية — نؤجّلها حتى يهدأ المتصفح فلا تزاحم الرسم الأول
+    // الصفوف المميزة ثانوية — نؤجّلها بوضوح حتى لا تزاحم التنقّل والصفوف
+    // الأساسية، خصوصاً في Android TV حيث معالجة الصور أثقل.
     if(!HIDE_MOST_WATCHED||!HIDE_SUGGESTIONS){
-      const idle=window.requestIdleCallback||(fn=>setTimeout(fn,1200));
+      const idle=window.requestIdleCallback
+        ? fn=>window.requestIdleCallback(fn,{timeout:8000})
+        : fn=>setTimeout(fn,5000);
       idle(()=>loadFeaturedRows(wrap));
     }
   }catch(e){
@@ -807,7 +856,9 @@ async function fetchAllRows(){
   // Keep the first paint responsive on phones and slow/data-saving connections.
   const connection=navigator.connection||navigator.mozConnection||navigator.webkitConnection;
   const constrained=!!(connection&&(connection.saveData||/^(slow-2g|2g|3g)$/.test(connection.effectiveType||'')));
-  const INITIAL=constrained?1:(_UA.isMobile?2:3);
+  /* على التلفاز لا نحتاج تحميل ثلاثة صفوف دفعة واحدة: الشاشة تعرض صفاً
+     واحداً فعلياً. هذا يسرّع أول تنقّل ويمنع ازدحام الشبكة والصور. */
+  const INITIAL=constrained?1:((_UA.isMobile||_UA.isAndroid)?1:2);
   const firstBatch=allRows.slice(0,INITIAL);
   const restRows=allRows.slice(INITIAL);
   await Promise.all(firstBatch.map(row=>fetchSingleRow(row)));
@@ -840,7 +891,9 @@ async function fetchSingleRow(row){
   row.dataset.loaded='1';
   try{
     const action=isVOD?'series':'channels';
-    const r=await fetch(`api.php?action=${action}&category_id=${encodeURIComponent(catId)}`);
+    /* بطاقة الصف تعرض 40 عنصراً كحد أقصى؛ طلب 100/200 عنصر كان ينقل
+       بيانات وصوراً لا تُستخدم. نحتفظ بهامش صغير للتبديل داخل الصف فقط. */
+    const r=await fetch(`api.php?action=${action}&category_id=${encodeURIComponent(catId)}&limit=${HOME_ROW_LIMIT}`);
     if(!r.ok)throw new Error('HTTP '+r.status);
     const payload=await r.json();
     const items=isVOD?(payload.series||[]):(payload.channels||[]);
@@ -918,7 +971,7 @@ async function loadFeaturedRows(wrap){
       const slice = chosen.slice(i, i+BATCH);
       const batch = await Promise.all(slice.map(p=>{
         const act = p.type==='channel' ? 'channels' : 'series';
-        return fetch(`api.php?action=${act}&category_id=${encodeURIComponent(p.cat.id)}`)
+        return fetch(`api.php?action=${act}&category_id=${encodeURIComponent(p.cat.id)}&limit=${HOME_ROW_LIMIT}`)
           .then(r=>r.json())
           .then(d=>({type:p.type, items:(p.type==='channel' ? (d.channels||[]) : (d.series||[]))}))
           .catch(()=>({type:p.type, items:[]}));
@@ -981,6 +1034,7 @@ async function loadFeaturedRows(wrap){
    بناء ٨٠٠٠ بطاقة لقسم أفلام كامل كان يخنق الصفحة، بينما لا يرى المستخدم سوى ١٠ منها.
    الباقي يُفتح عبر «عرض الكل» في صفحة القسم. */
 const MAX_CARDS_PER_ROW = 40;
+const HOME_ROW_LIMIT = 48;
 
 /* ════ عرض تدريجي (Progressive Rendering) ════
    المشكلة: صفحة القسم والبحث تمرران noCap=true، فتُبنى كل العناصر دفعة واحدة.
@@ -999,6 +1053,60 @@ function rebuildFavSets(){
   }catch(e){ _favChSet=new Set(); _favSrSet=new Set(); }
 }
 rebuildFavSets();
+
+/* شعارات Xtream قد تصل بأسماء حقول مختلفة حسب المزود، وبعض المزودين
+   يرفضون الطلب الأول بسبب الـ referrer أو كاش التلفاز. نحافظ دائماً على
+   الرابط الأصلي، ونعيد تجربته مرة بلا مرجع قبل إظهار البديل المحلي. */
+function shsChannelLogoUrl(item){
+  const keys=['logo_url','stream_icon','icon_url','tvg_logo','logo'];
+  for(let i=0;i<keys.length;i++){
+    const value=String((item&&item[keys[i]])||'').trim();
+    if(value&&value!=='null'&&value!=='undefined')return value;
+  }
+  return '';
+}
+let _shsXtreamLogoWorker=null;
+function shsWarmXtreamLogoCache(item,remoteUrl){
+  if(!item||!Number(item.xtream_account_id||0)||!remoteUrl||!('serviceWorker' in navigator))return;
+  const send=()=>navigator.serviceWorker.ready.then(reg=>{
+    const worker=reg.active||navigator.serviceWorker.controller;
+    if(worker)worker.postMessage({type:'SHS_CACHE_XTREAM_LOGO',url:remoteUrl});
+  }).catch(()=>{});
+  if(!_shsXtreamLogoWorker){
+    _shsXtreamLogoWorker=navigator.serviceWorker.register('xtream_logo_cache_sw.js',{scope:'./'}).then(send).catch(()=>{});
+  }else send();
+}
+function shsChannelFallbackSVG(){
+  return '<span class="shs-channel-fallback" aria-label="قناة بدون شعار"><svg class="shs-channel-fallback-svg" viewBox="0 0 120 120" fill="none" aria-hidden="true"><rect class="shs-tv-shell" x="15" y="27" width="90" height="61" rx="14"/><rect class="shs-tv-screen" x="22" y="34" width="76" height="45" rx="9"/><path class="shs-tv-wave shs-tv-wave-a" d="M38 57c8-9 16-9 24 0s16 9 24 0"/><path class="shs-tv-wave shs-tv-wave-b" d="M38 66c8-9 16-9 24 0s16 9 24 0"/><circle class="shs-tv-led" cx="91" cy="84" r="2.5"/><path class="shs-tv-base" d="M45 99h30M53 88l-5 11m19-11 5 11"/></svg><span class="shs-channel-fallback-text">LIVE</span></span>';
+}
+function shsAppendChannelLogo(thumb,item){
+  const remoteLogo=shsChannelLogoUrl(item);
+  if(!remoteLogo)return false;
+  /* نخزّن الشعارات في Cache Storage داخل جهاز المشاهد؛ لا يوجد proxy
+     خادمي ولا طلب جديد إلى المزود بعد أول تحميل ناجح. */
+  shsWarmXtreamLogoCache(item,remoteLogo);
+  const logoUrl=remoteLogo;
+  const img=document.createElement('img');
+  img.src=logoUrl;
+  img.loading=window.matchMedia('(max-width: 768px)').matches?'eager':'lazy';
+  img.fetchPriority='high';img.decoding='async';
+  img.referrerPolicy='no-referrer';
+  img.alt=String(item.name||'');
+  img.onerror=function(){
+    if(!this.dataset.shsLogoRetry&&/^https?:\/\//i.test(remoteLogo)){
+      this.dataset.shsLogoRetry='1';
+      this.src=remoteLogo+(remoteLogo.indexOf('?')>=0?'&':'?')+'_shs_logo='+Date.now();
+      return;
+    }
+    this.remove();
+    if(!thumb.querySelector('.ch-icon')){
+      const fallback=document.createElement('span');
+      fallback.className='ch-icon';fallback.innerHTML=shsChannelFallbackSVG();thumb.prepend(fallback);
+    }
+  };
+  thumb.appendChild(img);
+  return true;
+}
 
 function renderItemsIntoSliderDOM(sliderDom,items,cardType,highlightStr='',noCap){
   if(cardType==='channels'&&items&&items.length){
@@ -1081,17 +1189,8 @@ function renderItemsIntoSliderDOM(sliderDom,items,cardType,highlightStr='',noCap
       // thumb
       const thumb=document.createElement('div');
       thumb.className='ch-thumb';
-      if(item.logo_url){
-        const img=document.createElement('img');
-        img.src=String(item.logo_url);
-        img.loading=window.matchMedia('(max-width: 768px)').matches?'eager':'lazy';
-        img.fetchPriority='high';
-        img.decoding='async';
-        img.alt=String(item.name||'');
-        img.onerror=function(){this.style.display='none';};
-        thumb.appendChild(img);
-      }else{
-        thumb.innerHTML='<span style="font-size:1.8rem;color:#2e2e2e">📺</span>';
+      if(!shsAppendChannelLogo(thumb,item)){
+        thumb.innerHTML=shsChannelFallbackSVG();
       }
       const liveBadge=document.createElement('span');
       liveBadge.className='ch-live-badge';
@@ -1216,8 +1315,19 @@ async function openSeriesEpisodes(seriesId,seriesName,seriesPoster){
   grid.innerHTML='';loading.classList.remove('hidden');empty.classList.add('hidden');
   window.scrollTo({top:0,behavior:'smooth'});
   try{
-    const r=await fetch(`api.php?action=episodes&series_id=${encodeURIComponent(seriesId)}`);
-    const d=await r.json();App.allEpisodes=d.episodes||[];
+    /* بعض متصفحات Android TV تحتفظ بنتيجة API فارغة في الكاش حتى بعد
+       اكتمال الاستيراد. نطلب أولاً بشكل طبيعي، ثم نعيد الجلب من المصدر
+       مرة واحدة فقط إذا كانت القائمة فارغة فعلاً. */
+    const epUrl=`api.php?action=episodes&series_id=${encodeURIComponent(seriesId)}`;
+    let r=await fetch(epUrl,{cache:'no-store',credentials:'same-origin'});
+    let d=await r.json();
+    if(d&&d.success&&!(d.episodes||[]).length){
+      r=await fetch(epUrl+'&fresh=1',{cache:'no-store',credentials:'same-origin'});
+      const fresh=await r.json();
+      if(fresh&&fresh.success)d=fresh;
+    }
+    if(!d||!d.success)throw new Error((d&&d.error)||'تعذر تحميل الحلقات');
+    App.allEpisodes=d.episodes||[];
     /* [SHS-EPPOSTER] لو أرجع الـ API بوستر المسلسل، نستخدمه احتياطياً */
     if(!App.currentSeriesPoster){
       var sp=d.series_poster||d.poster_url||(d.series&&d.series.poster_url)||'';
@@ -1752,6 +1862,16 @@ function shsOpenCatMenu(){
   if(ov)ov.classList.add('open');
   if(pn){pn.classList.add('open');pn.setAttribute('aria-hidden','false');}
   document.body.style.overflow='hidden';
+  /* عند فتح القائمة بالريموت لا نترك التركيز خلف النافذة؛ نبدأ من القسم
+     الحالي (أو أول خيار) ليكون اختيار الأقسام في Android TV مباشراً. */
+  setTimeout(function(){
+    var target=pn&&(pn.querySelector('.shs-catmenu-item.active')||pn.querySelector('.shs-catmenu-homerow')||pn.querySelector('.shs-catmenu-item'));
+    if(target){
+      target.setAttribute('tabindex','0');
+      if(typeof _tvSetFocus==='function')_tvSetFocus(target);
+      else try{target.focus();}catch(e){}
+    }
+  },40);
 }
 function shsCloseCatMenu(){
   var ov=document.getElementById('shsCatMenuOverlay');
@@ -2826,24 +2946,34 @@ function _startExternalAudio(audioUrl,video){
   const a=document.createElement('audio');
   a.id='externalAudioPlayer';a.preload='auto';a.style.display='none';
   PL.externalAudio=a;PL.audioActive=false;
+  /* لا نسمح لاستجابة HLS متأخرة بإحياء صوت القناة بعد الخروج من المشغّل. */
+  const audioEpoch=Number(PL.playEpoch||0);
+  const alive=()=>{
+    const overlay=document.getElementById('playerOverlay');
+    return PL.externalAudio===a && Number(PL.playEpoch||0)===audioEpoch && !!(overlay&&overlay.classList.contains('active'));
+  };
   const sync=(force)=>_syncExternalAudio(video,a,!!force);
-  const activate=()=>{if(PL.externalAudio!==a)return;PL.audioActive=true;video.muted=true;a.volume=PL.vol;a.muted=PL.muted;sync(true);};
-  const failed=()=>{if(PL.externalAudio!==a)return;PL.audioActive=false;video.muted=PL.muted;try{toast('تعذر تشغيل رابط الصوت المنفصل — تم استخدام صوت الفيديو');}catch(e){}};
+  const activate=()=>{if(!alive()){try{a.pause();}catch(e){}return;}PL.audioActive=true;video.muted=true;a.volume=PL.vol;a.muted=PL.muted;sync(true);};
+  const failed=()=>{if(!alive())return;PL.audioActive=false;video.muted=PL.muted;try{toast('تعذر تشغيل رابط الصوت المنفصل — تم استخدام صوت الفيديو');}catch(e){}};
   a.addEventListener('playing',activate,{once:true});
   a.addEventListener('loadedmetadata',()=>setTimeout(()=>sync(true),80),{once:true});
   a.addEventListener('canplay',()=>sync(true),{once:true});
   a.addEventListener('error',failed,{once:true});
-  video.addEventListener('play',()=>{if(PL.externalAudio===a){sync(true);a.play().catch(()=>{});}});
+  video.addEventListener('play',()=>{if(alive()){sync(true);a.play().catch(()=>{});}});
   video.addEventListener('pause',()=>{if(PL.externalAudio===a)a.pause();});
   const host=document.getElementById('pvWrap');if(host)host.appendChild(a);
   PL.audioSyncTimer=setInterval(()=>sync(false),750);
   if(detectFmt(audioUrl)==='hls'&&typeof Hls!=='undefined'&&Hls.isSupported()){
     PL.audioHls=new Hls({enableWorker:false,lowLatencyMode:false});
     PL.audioHls.attachMedia(a);PL.audioHls.loadSource(audioUrl);
-    PL.audioHls.on(Hls.Events.MANIFEST_PARSED,()=>{sync(true);a.play().catch(()=>{});});
+    PL.audioHls.on(Hls.Events.MANIFEST_PARSED,()=>{if(alive()){sync(true);a.play().catch(()=>{});}});
     PL.audioHls.on(Hls.Events.ERROR,(e,d)=>{if(d.fatal)failed();});
-  }else{a.src=audioUrl;a.load();a.play().catch(()=>{});}
+  }else{a.src=audioUrl;a.load();if(alive())a.play().catch(()=>{});}
 }function initStream(url,subUrl){
+  /* قد تصل محاولة إعادة تشغيل مؤجلة بعد إغلاق المشغّل؛ تجاهلها تماماً
+     كي لا يُنشأ فيديو أو صوت مخفي في الخلفية. */
+  const activeOverlay=document.getElementById('playerOverlay');
+  if(!activeOverlay||!activeOverlay.classList.contains('active'))return;
   // نتذكّر الرابط الحالي حتى يعرف الاسترداد التلقائي ما يعيد تشغيله
   _hardReloadUrl=url; _hardReloadSub=subUrl||'';
   const v=document.getElementById('html5Player');
@@ -3380,9 +3510,15 @@ function _startExternalAudio(audioUrl,video){
   newV.onended=()=>{
     if(App.currentType==='episode'&&App.currentEpisodeIdx<App.allEpisodes.length-1){
       toast('انتقال للحلقة التالية...');
-      setTimeout(()=>navEpisode(1),2000);
+      const endedEpoch=Number(PL.playEpoch||0);
+      PL._autoNextTimer=setTimeout(()=>{
+        PL._autoNextTimer=null;
+        const overlay=document.getElementById('playerOverlay');
+        if(Number(PL.playEpoch||0)===endedEpoch&&overlay&&overlay.classList.contains('active'))navEpisode(1);
+      },2000);
     }
-    if(PL.m3uEntries.length&&PL.m3uIdx<PL.m3uEntries.length-1)playM3UEntry(PL.m3uIdx+1);
+    const liveOverlay=document.getElementById('playerOverlay');
+    if(liveOverlay&&liveOverlay.classList.contains('active')&&PL.m3uEntries.length&&PL.m3uIdx<PL.m3uEntries.length-1)playM3UEntry(PL.m3uIdx+1);
   };
 
   // FIX: تحديث _lastUrl للـ watchdog
@@ -3391,6 +3527,9 @@ function _startExternalAudio(audioUrl,video){
 
 /* destroyPlayer — تنظيف كامل مع تحرير Blob URLs */
 function destroyPlayer(){
+  /* رقم جلسة يبطل أي callback متأخر (HLS/الصوت/الانتقال التلقائي). */
+  PL.playEpoch=Number(PL.playEpoch||0)+1;
+  if(PL._autoNextTimer){clearTimeout(PL._autoNextTimer);PL._autoNextTimer=null;}
   _destroyExternalAudio();
   if(typeof _tsStopPing==='function') _tsStopPing();   // نوقف نبضة الوسيط
   if(typeof _compat4kStopPing==='function') _compat4kStopPing();
@@ -3698,7 +3837,7 @@ function showControls(){
   },delay);
 }
 
-function fixPlayerHeight(){const el=document.getElementById('playerOverlay');if(!el)return;el.style.height=window.innerHeight+'px';}
+function fixPlayerHeight(){const el=document.getElementById('playerOverlay');if(!el)return;const viewport=window.visualViewport;const height=(_UA.isMobile&&viewport&&viewport.height)?viewport.height:window.innerHeight;el.style.height=Math.round(height)+'px';}
 
 /* ════ PLAYER EVENTS ════ */
 document.addEventListener('DOMContentLoaded',function(){
@@ -3965,8 +4104,20 @@ document.addEventListener('keydown',function(e){
   var ks=e.key||'',kc=e.keyCode||e.which||0;
   var K={UP:ks==='ArrowUp'||kc===38||kc===19,DOWN:ks==='ArrowDown'||kc===40||kc===20,LEFT:ks==='ArrowLeft'||kc===37||kc===21,RIGHT:ks==='ArrowRight'||kc===39||kc===22,OK:ks==='Enter'||ks==='Select'||ks===' '||kc===13||kc===23,BACK:ks==='Escape'||ks==='BrowserBack'||kc===27||kc===4||kc===10009||kc===8};
   if(!K.UP&&!K.DOWN&&!K.LEFT&&!K.RIGHT&&!K.OK&&!K.BACK)return;
+  var menuPanel=document.getElementById('shsCatMenuPanel');
+  var menuOpen=!!(menuPanel&&menuPanel.classList.contains('open'));
+  if(K.BACK&&menuOpen){
+    e.preventDefault();shsCloseCatMenu();
+    var menuBtn=document.getElementById('shsCatMenuBtn');
+    if(menuBtn)_tvSetFocus(menuBtn);
+    return;
+  }
   if(K.BACK){e.preventDefault();window._goBack();return;}
-  var sel='.ch-card,.sr-card,.ep-card,.back-btn,.nav-btn,.info-action-btn,#searchInput,.ep-item,.m3u-item';
+  /* عندما تفتح قائمة الأقسام نعزل التنقل داخلها؛ سابقاً كان الريموت
+     ينتقل إلى بطاقات مخفية خلفها فتبدو الخيارات غير قابلة للاختيار. */
+  var sel=menuOpen
+    ? '.shs-catmenu-close,.shs-catmenu-homerow,.shs-catmenu-item'
+    : '#shsCatMenuBtn,.shs-catmenu-btn,.shs-nx-top-all,.shs-nx-top-tab,.shs-nx-top-category,.cat-nav-btn,.ch-card,.sr-card,.ep-card,.back-btn,.nav-btn,.info-action-btn,#searchInput,.ep-item,.m3u-item';
   var focusables=Array.from(document.querySelectorAll(sel)).filter(function(el){
     var r=el.getBoundingClientRect();
     return r.width>0&&r.height>0&&!el.closest('.hidden');
@@ -3980,6 +4131,8 @@ document.addEventListener('keydown',function(e){
     if(el===_tvFocus)return;
     var r=el.getBoundingClientRect();var cx=r.left+r.width/2,cy=r.top+r.height/2,ox=cur.left+cur.width/2,oy=cur.top+cur.height/2;
     var dx=cx-ox,dy=cy-oy,ok=false;
+    /* اتجاه الريموت يبقى طبيعياً دائماً: يمين يتحرك يميناً ويسار يتحرك
+       يساراً، حتى مع كون لغة الواجهة عربية. */
     if(K.RIGHT&&dx>20)ok=true;if(K.LEFT&&dx<-20)ok=true;if(K.DOWN&&dy>20)ok=true;if(K.UP&&dy<-20)ok=true;
     if(!ok)return;
     var primary=(K.UP||K.DOWN)?Math.abs(dy):Math.abs(dx),secondary=(K.UP||K.DOWN)?Math.abs(dx):Math.abs(dy);
@@ -3996,7 +4149,7 @@ document.addEventListener('keydown',function(e){
 
 (function(){
   function applyTabindex(){
-    document.querySelectorAll('.ch-card,.sr-card,.ep-card,.back-btn,.nav-btn,.ep-item,.m3u-item,.info-action-btn,#searchInput').forEach(function(el){if(!el.getAttribute('tabindex'))el.setAttribute('tabindex','0');});
+    document.querySelectorAll('#shsCatMenuBtn,.shs-catmenu-btn,.shs-nx-top-all,.shs-nx-top-tab,.shs-nx-top-category,.cat-nav-btn,.shs-catmenu-close,.shs-catmenu-homerow,.shs-catmenu-item,.ch-card,.sr-card,.ep-card,.back-btn,.nav-btn,.ep-item,.m3u-item,.info-action-btn,#searchInput').forEach(function(el){if(!el.getAttribute('tabindex'))el.setAttribute('tabindex','0');});
   }
   if(window.MutationObserver){var obs=new MutationObserver(function(ms){var changed=false;ms.forEach(function(m){if(m.addedNodes.length)changed=true;});if(changed){clearTimeout(obs._t);obs._t=setTimeout(applyTabindex,150);}});obs.observe(document.body,{childList:true,subtree:true});}
   setTimeout(applyTabindex,600);setTimeout(applyTabindex,2000);
